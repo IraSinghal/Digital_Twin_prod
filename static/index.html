@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Compressor Digital Twin — Real-Time Monitoring</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+  <style>
+    :root {
+      --bg: #f4f6f9;
+      --surface: #ffffff;
+      --border: #e2e6ed;
+      --text: #1a1e2c;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --ok: #16a34a;
+      --ok-bg: #dcfce7;
+      --warn: #d97706;
+      --warn-bg: #fef3c7;
+      --danger: #dc2626;
+      --danger-bg: #fee2e2;
+      --info: #0891b2;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+      --font: "Inter", system-ui, sans-serif;
+      --mono: "JetBrains Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── TOP BAR ── */
+    .top-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.7rem 1.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 0.6rem;
+      position: sticky; top: 0; z-index: 50;
+      box-shadow: var(--shadow);
+    }
+    .top-bar .left { display: flex; align-items: center; gap: 0.75rem; }
+    .top-bar h1 { font-size: 1rem; font-weight: 700; letter-spacing: -0.02em; }
+    .model-tag {
+      font-size: 0.65rem; font-weight: 600;
+      padding: 0.18rem 0.5rem; border-radius: 6px;
+      background: #ede9fe; color: #6d28d9;
+    }
+    .controls { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+    .ws-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .ws-dot.on { background: var(--ok); box-shadow: 0 0 6px rgba(22,163,74,.5); }
+    .ws-dot.off { background: #9ca3af; }
+    .ws-label { font-size: 0.72rem; color: var(--muted); margin-right: 0.3rem; }
+    .clock { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+    .demo-progress { font-size: 0.7rem; color: var(--muted); font-family: var(--mono); }
+    .hidden { display: none !important; }
+
+    button {
+      font-family: var(--font); font-size: 0.75rem; font-weight: 500;
+      padding: 0.38rem 0.8rem; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--text); cursor: pointer; transition: all .15s;
+    }
+    button:hover { border-color: var(--accent); color: var(--accent); }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    button.primary:hover { background: #1d4ed8; }
+    button.danger-btn { border-color: var(--danger); color: var(--danger); }
+    button.danger-btn:hover { background: var(--danger-bg); }
+    button:disabled { opacity: .5; cursor: default; }
+    select {
+      font-family: var(--font); font-size: 0.75rem;
+      padding: 0.38rem 0.55rem; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--text); cursor: pointer;
+    }
+
+    /* ── WRAP ── */
+    .wrap { max-width: 1440px; margin: 0 auto; padding: 0.9rem 1.25rem 2rem; }
+
+    /* ── ACTION BANNER ── */
+    .action-banner {
+      border-radius: var(--radius); padding: 0.75rem 1.15rem;
+      display: flex; align-items: center; gap: 0.9rem;
+      margin-bottom: 0.9rem; border: 1px solid var(--border);
+      background: var(--surface); box-shadow: var(--shadow);
+    }
+    .action-pill {
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; padding: 0.28rem 0.65rem;
+      border-radius: 999px; white-space: nowrap;
+    }
+    .action-msg { font-size: 0.82rem; color: var(--muted); flex: 1; }
+
+    /* ── KPI ROW ── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+      gap: 0.55rem; margin-bottom: 0.9rem;
+    }
+    .kpi {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 0.65rem 0.85rem;
+      box-shadow: var(--shadow);
+    }
+    .kpi label {
+      display: block; font-size: 0.6rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      color: var(--muted); margin-bottom: 0.2rem;
+    }
+    .kpi .val { font-family: var(--mono); font-size: 1.05rem; font-weight: 600; }
+
+    /* ── MAIN GRID ── */
+    .main-grid { display: grid; grid-template-columns: 1fr 320px; gap: 0.9rem; }
+    @media (max-width: 1024px) { .main-grid { grid-template-columns: 1fr; } }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 0.9rem 1rem;
+      margin-bottom: 0.9rem; box-shadow: var(--shadow);
+    }
+    .card h2 {
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.07em; color: var(--muted); margin-bottom: 0.65rem;
+    }
+    .chart-box { height: 280px; position: relative; }
+    .chart-box-sm { height: 200px; position: relative; }
+
+    /* ── SIDEBAR ── */
+    .sidebar { display: flex; flex-direction: column; gap: 0; }
+    .sidebar .card { margin-bottom: 0.9rem; }
+
+    /* ── TEST READINESS LIST ── */
+    .readiness-list { list-style: none; }
+    .readiness-list li {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.42rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.8rem;
+    }
+    .readiness-list li:last-child { border-bottom: none; }
+    .readiness-list .rl { color: var(--muted); }
+    .readiness-list .rv { font-family: var(--mono); font-weight: 500; text-align: right; }
+    .verdict-badge {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      font-size: 0.75rem; font-weight: 700; padding: 0.28rem 0.65rem; border-radius: 8px;
+    }
+    .verdict-pass { background: var(--ok-bg); color: var(--ok); }
+    .verdict-fail { background: var(--danger-bg); color: var(--danger); }
+    .verdict-pending { background: #f3f4f6; color: var(--muted); }
+
+    /* ── PARAM STATUS BARS ── */
+    .ps-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.45rem; font-size: 0.8rem; }
+    .ps-row .ps-label { width: 50px; font-weight: 600; }
+    .ps-row .ps-bar-wrap { flex: 1; height: 14px; background: #e5e7eb; border-radius: 7px; overflow: hidden; }
+    .ps-row .ps-bar { height: 100%; border-radius: 7px; transition: width .3s; }
+    .ps-row .ps-count { font-family: var(--mono); font-size: 0.72rem; width: 22px; text-align: right; }
+
+    /* ── TABLES ── */
+    table { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
+    th, td { padding: 0.4rem 0.35rem; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    td.num { font-family: var(--mono); text-align: right; }
+    .err-low { color: var(--ok); }
+    .err-mid { color: var(--warn); }
+    .err-high { color: var(--danger); }
+
+    /* ── PREDICTION TABLE ── */
+    .pred-table { overflow-x: auto; }
+    .pred-table table { min-width: 650px; }
+    .pred-table .pred-val { color: var(--ok); font-weight: 600; }
+    .pred-table .pred-proj { color: var(--warn); font-weight: 600; font-style: italic; }
+    .pred-table .actual-val { color: var(--muted); font-size: 0.7rem; }
+    .pred-table .err-val { font-size: 0.65rem; }
+
+    .foot { margin-top: 1.4rem; font-size: 0.7rem; color: var(--muted); text-align: center; }
+    .muted-p { color: var(--muted); font-size: 0.8rem; }
+    .fw500 { font-weight: 500; }
+  </style>
+</head>
+<body>
+
+<!-- ═══ TOP BAR ═══ -->
+<div class="top-bar">
+  <div class="left">
+    <h1>Compressor Digital Twin</h1>
+    <span class="model-tag" id="modelTag">KES 22-8.5</span>
+  </div>
+  <div class="controls">
+    <span class="ws-dot off" id="wsDot"></span>
+    <span class="ws-label" id="wsLabel">Disconnected</span>
+    <span class="clock" id="clock"></span>
+    <span class="demo-progress hidden" id="demoProgress"></span>
+    <select id="replaySpeed" title="Auto-replay interval">
+      <option value="500">Normal</option>
+      <option value="200">Fast</option>
+      <option value="100">Rapid</option>
+      <option value="1000">Slow</option>
+    </select>
+    <button id="btnTick">Tick</button>
+    <button class="primary" id="btnAutoReplay">Auto Replay</button>
+    <button class="danger-btn" id="btnReset">Reset</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ═══ ACTION BANNER ═══ -->
+  <div class="action-banner">
+    <span class="action-pill" id="actionPill" style="background:#f3f4f6;color:#6b7280;border:1.5px solid #d1d5db">WAITING</span>
+    <span class="action-msg" id="actionMsg">Awaiting sensor data&hellip;</span>
+  </div>
+
+  <!-- ═══ KPI ROW ═══ -->
+  <div class="kpi-row">
+    <div class="kpi"><label>Elapsed</label><div class="val" id="kElapsed">--</div></div>
+    <div class="kpi"><label>Readings</label><div class="val" id="kReadings">0</div></div>
+    <div class="kpi"><label>Time to Stability</label><div class="val" id="kTTS">--</div></div>
+    <div class="kpi"><label>Predicted Stable @</label><div class="val" id="kPredStable">--</div></div>
+    <div class="kpi"><label>Recommended End</label><div class="val" id="kRecEnd">--</div></div>
+    <div class="kpi"><label>Time Saved (vs 3 h)</label><div class="val" id="kTimeSaved">--</div></div>
+    <div class="kpi"><label>Confidence</label><div class="val" id="kConf">--</div></div>
+    <div class="kpi"><label>Sensor Status</label><div class="val" id="kSensorSt">--</div></div>
+  </div>
+
+  <!-- ═══ MAIN GRID ═══ -->
+  <div class="main-grid">
+
+    <!-- LEFT COLUMN -->
+    <div>
+      <!-- FAD Trajectory -->
+      <div class="card">
+        <h2>FAD Trajectory + Predicted Values</h2>
+        <div class="chart-box"><canvas id="chartFAD"></canvas></div>
+      </div>
+
+      <!-- All Sensors -->
+      <div class="card">
+        <h2>Sensor Traces (Real-Time)</h2>
+        <div class="chart-box"><canvas id="chartSensors"></canvas></div>
+      </div>
+
+      <!-- Prediction Accuracy Bar -->
+      <div class="card">
+        <h2>Prediction Accuracy at Each Checkpoint &mdash; Error % per Sensor</h2>
+        <div class="chart-box"><canvas id="chartAccuracy"></canvas></div>
+      </div>
+
+      <!-- Prediction Table -->
+      <div class="card">
+        <h2>Prediction Table &mdash; Predicted vs Actual</h2>
+        <div class="pred-table" id="predTable">
+          <p class="muted-p">Data appears after checkpoint times are reached&hellip;</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT SIDEBAR -->
+    <div class="sidebar">
+
+      <!-- Test Readiness -->
+      <div class="card">
+        <h2>Test Readiness Report</h2>
+        <ul class="readiness-list">
+          <li><span class="rl">Stability declared</span><span class="rv" id="rStability">--</span></li>
+          <li><span class="rl">Steady-state FAD</span><span class="rv" id="rSSFad">--</span></li>
+          <li><span class="rl">Spec minimum</span><span class="rv" id="rSpecMin">--</span></li>
+          <li><span class="rl">FAD margin</span><span class="rv" id="rFadMargin">--</span></li>
+          <li><span class="rl">Time saved</span><span class="rv" id="rTimeSaved">--</span></li>
+          <li><span class="rl">Confidence</span><span class="rv" id="rConf">--</span></li>
+          <li><span class="rl">Model MAE</span><span class="rv" id="rMAE">--</span></li>
+          <li>
+            <span class="rl">Overall verdict</span>
+            <span class="verdict-badge verdict-pending" id="rVerdict">PENDING</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Parameter Status -->
+      <div class="card">
+        <h2>Parameter Status</h2>
+        <div id="paramStatus"></div>
+        <p style="margin-top:0.4rem;font-size:0.7rem;" id="paramNote"></p>
+      </div>
+
+      <!-- Current vs Ref -->
+      <div class="card">
+        <h2>Current vs Stable Reference</h2>
+        <div id="tableCurrent"></div>
+      </div>
+
+      <!-- Forecast -->
+      <div class="card">
+        <h2>Forecast (Next Horizon)</h2>
+        <div id="tableForecast"></div>
+      </div>
+
+      <!-- Outlook mini-chart -->
+      <div class="card">
+        <h2>Operational Outlook</h2>
+        <div class="chart-box-sm"><canvas id="chartOutlook"></canvas></div>
+      </div>
+
+    </div>
+  </div>
+
+  <p class="foot">Compressor Digital Twin &mdash; Real-time stability monitoring &bull; Multi-output gradient boosting with rolling feature engineering</p>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════
+   CONSTANTS
+   ══════════════════════════════════════════════ */
+/* Sensor short labels & units */
+const SHORT = {
+  airend_discharge_temp_c:   "Disc Temp",
+  delivery_pressure_kg_cm2g: "Del. Press.",
+  fad_cfm:                   "FAD",
+  package_input_power_kw:    "Pkg Power",
+  spc_kw_per_m3_min:         "SPC",
+  power_factor:              "PF",
+};
+const UNITS = {
+  airend_discharge_temp_c:   "°C",
+  delivery_pressure_kg_cm2g: "kg/cm²g",
+  fad_cfm:                   "CFM",
+  package_input_power_kw:    "kW",
+  spc_kw_per_m3_min:         "kW/m³/min",
+  power_factor:              "",
+};
+const ACT_STYLE = {
+  WAIT:                { bg:"#f3f4f6", fg:"#6b7280", bd:"#d1d5db" },
+  CONTINUE_MONITORING: { bg:"#e0f7fa", fg:"#0891b2", bd:"#67e8f9" },
+  PREPARE_STOP:        { bg:"#fef3c7", fg:"#d97706", bd:"#fbbf24" },
+  SAFE_TO_STOP:        { bg:"#dcfce7", fg:"#16a34a", bd:"#4ade80" },
+  ALREADY_STABLE:      { bg:"#dbeafe", fg:"#2563eb", bd:"#60a5fa" },
+};
+const ACT_MSG = {
+  WAIT:                "Collecting initial data — need 20 readings & 15 min elapsed.",
+  CONTINUE_MONITORING: "Signals still settling — continue the test.",
+  PREPARE_STOP:        "Stability approaching — run pre-stop checklist.",
+  SAFE_TO_STOP:        "Model supports concluding the test at the recommended time.",
+  ALREADY_STABLE:      "Stable rated operation achieved.",
+};
+const PAL       = ["#2563eb","#f59e0b","#10b981","#6366f1","#ef4444","#8b5cf6"];
+const CP_LABELS = ["30 min","60 min","90 min","120 min","150 min","180 min"];
+
+/* ── KPI element IDs (shared by renderKpis & reset) ── */
+const KPI_IDS = ["kElapsed","kReadings","kTTS","kPredStable","kRecEnd","kTimeSaved","kConf","kSensorSt"];
+
+/* ── Convenience: is the action a stable conclusion? ── */
+function isStable(action) { return action==="SAFE_TO_STOP" || action==="ALREADY_STABLE"; }
+
+/* ── Shared chart sub-config objects (avoid copy-paste across 4 charts) ── */
+const CTICK = { font:{size:10}, color:"#6b7280" };
+const CGRID = { color:"#f0f0f0" };
+const CLEG  = { labels:{ font:{size:11, family:"Inter"}, usePointStyle:true, padding:12 } };
+
+let meta = null, ws = null, autoRunning = false;
+
+const S = {
+  elapsed:[], tts:[], predStable:[], recEnd:[], conf:[],
+  sensors:{}, predicted:{}
+};
+
+/* ══════════════════════════════════════════════
+   HELPERS
+   ══════════════════════════════════════════════ */
+function fmt(v, d) { if (v==null || Number.isNaN(v)) return "--"; return Number(v).toFixed(d==null?1:d); }
+
+function updateClock() { document.getElementById("clock").textContent = new Date().toLocaleTimeString(); }
+setInterval(updateClock, 1000); updateClock();
+
+function setWs(ok) {
+  document.getElementById("wsDot").className = "ws-dot "+(ok?"on":"off");
+  document.getElementById("wsLabel").textContent = ok?"Connected":"Disconnected";
+}
+
+/* ══════════════════════════════════════════════
+   BUILD CHARTS
+   ══════════════════════════════════════════════ */
+let chFAD, chSensors, chAcc, chOutlook;
+
+/* Base options builder — used by chSensors directly; others extend manually where needed */
+function mkOpts(extra) {
+  return {
+    responsive:true, maintainAspectRatio:false, animation:{duration:0},
+    plugins:{ legend:CLEG, ...(extra||{}) },
+    scales:{
+      x:{ ticks:Object.assign({maxTicksLimit:12}, CTICK), grid:CGRID,
+          title:{display:true, text:"Time (min)", font:{size:11}, color:"#6b7280"} },
+      y:{ ticks:CTICK, grid:CGRID }
+    }
+  };
+}
+
+function buildCharts() {
+  /* FAD Trajectory — same base as mkOpts but adds y-title & annotation plugin */
+  chFAD = new Chart(document.getElementById("chartFAD"), {
+    type:"line", data:{labels:[], datasets:[]},
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:{duration:0},
+      plugins:{ legend:CLEG, annotation:{annotations:{}} },
+      scales:{
+        x:{ ticks:Object.assign({maxTicksLimit:12}, CTICK), grid:CGRID,
+            title:{display:true, text:"Time (min)", font:{size:11}, color:"#6b7280"} },
+        y:{ ticks:CTICK, grid:CGRID,
+            title:{display:true, text:"FAD (CFM)", font:{size:11}, color:"#6b7280"} }
+      }
+    }
+  });
+
+  /* Sensor Traces — uses mkOpts() directly */
+  chSensors = new Chart(document.getElementById("chartSensors"), {
+    type:"line", data:{labels:[], datasets:[]}, options:mkOpts()
+  });
+
+  /* Accuracy Bar — bar chart, no x-title, y bounded 0-10, threshold annotations */
+  chAcc = new Chart(document.getElementById("chartAccuracy"), {
+    type:"bar", data:{labels:CP_LABELS, datasets:[]},
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:{duration:0},
+      plugins:{
+        legend:CLEG,
+        annotation:{ annotations:{
+          t3:{type:"line",yMin:3,yMax:3,borderColor:"#16a34a",borderWidth:2,borderDash:[8,4],
+            label:{display:true,content:"3% target",position:"start",font:{size:10},backgroundColor:"transparent",color:"#16a34a"}},
+          c7:{type:"line",yMin:7,yMax:7,borderColor:"#d97706",borderWidth:2,borderDash:[8,4],
+            label:{display:true,content:"7% caution",position:"start",font:{size:10},backgroundColor:"transparent",color:"#d97706"}}
+        }}
+      },
+      scales:{
+        x:{ ticks:CTICK, grid:CGRID },
+        y:{ min:0, max:10, ticks:CTICK, grid:CGRID,
+            title:{display:true, text:"Prediction error (%)", font:{size:11}, color:"#6b7280"} }
+      }
+    }
+  });
+
+  /* Outlook mini-chart — slightly smaller font, no x-title */
+  var smTick = {font:{size:9}, color:"#6b7280"};
+  chOutlook = new Chart(document.getElementById("chartOutlook"), {
+    type:"line", data:{labels:[], datasets:[]},
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:{duration:0},
+      plugins:{ legend:{labels:{font:{size:10,family:"Inter"},usePointStyle:true,padding:8}} },
+      scales:{
+        x:{ ticks:Object.assign({maxTicksLimit:10}, smTick), grid:CGRID },
+        y:{ ticks:smTick, grid:CGRID,
+            title:{display:true, text:"Minutes", font:{size:10}, color:"#6b7280"} }
+      }
+    }
+  });
+}
+
+/* ══════════════════════════════════════════════
+   RENDER HELPERS
+   ══════════════════════════════════════════════ */
+function renderAction(p) {
+  var a = p.action||"WAIT", st = ACT_STYLE[a]||ACT_STYLE.WAIT;
+  var pill = document.getElementById("actionPill");
+  pill.textContent = a.replace(/_/g," ");
+  pill.style.background = st.bg; pill.style.color = st.fg;
+  pill.style.border = "1.5px solid "+st.bd;
+  document.getElementById("actionMsg").textContent = p.message||ACT_MSG[a]||"";
+}
+
+function renderKpis(p) {
+  var col = (ACT_STYLE[p.action]||ACT_STYLE.WAIT).fg;
+  document.getElementById("kElapsed").textContent    = fmt(p.elapsed_min,1)+" min";
+  document.getElementById("kReadings").textContent   = p.n_readings||"0";
+  document.getElementById("kTTS").textContent        = fmt(p.time_to_stability_min,1)+" min";
+  document.getElementById("kTTS").style.color        = col;
+  document.getElementById("kPredStable").textContent = fmt(p.predicted_stable_min,1)+" min";
+  document.getElementById("kRecEnd").textContent     = fmt(p.recommended_end_min,1)+" min";
+  document.getElementById("kTimeSaved").textContent  = fmt(p.time_saved_min,0)+" min";
+  document.getElementById("kTimeSaved").style.color  = (p.time_saved_min||0)>0?"#16a34a":"";
+  document.getElementById("kConf").textContent       = fmt(p.confidence_pct,1)+"%";
+  document.getElementById("kSensorSt").textContent   = p.sensor_status||"--";
+  var ss = p.sensor_status;
+  document.getElementById("kSensorSt").style.color   = ss==="stable"?"#16a34a":ss==="converging"?"#d97706":"#dc2626";
+}
+
+function renderReadiness(p) {
+  if (!meta) return;
+  var fadNow = p.current_sensors&&p.current_sensors.fad_cfm;
+  var ssRef  = meta.stable_ref&&meta.stable_ref.fad_cfm;
+  var specMin = ssRef ? (ssRef*0.94).toFixed(1) : "--";
+  var margin  = (fadNow&&ssRef) ? ((fadNow-ssRef*0.94)/(ssRef*0.94)*100).toFixed(1)+"%" : "--";
+  document.getElementById("rStability").textContent = isStable(p.action) ? "Yes" : "No";
+  document.getElementById("rSSFad").textContent     = ssRef ? ssRef.toFixed(1)+" CFM" : "--";
+  document.getElementById("rSpecMin").textContent   = specMin!=="--" ? specMin+" CFM" : "--";
+  document.getElementById("rFadMargin").textContent = margin;
+  document.getElementById("rTimeSaved").textContent = fmt(p.time_saved_min,0)+" min";
+  document.getElementById("rConf").textContent      = fmt(p.confidence_pct,1)+"%";
+  document.getElementById("rMAE").textContent       = p.model_mae_min ? fmt(p.model_mae_min,2)+" min" : "--";
+  var v = document.getElementById("rVerdict");
+  if (isStable(p.action)) {
+    v.textContent="PASS \u2713"; v.className="verdict-badge verdict-pass";
+  } else if ((p.confidence_pct||0)>=50) {
+    v.textContent="IN PROGRESS"; v.className="verdict-badge verdict-pending";
+  } else {
+    v.textContent="PENDING"; v.className="verdict-badge verdict-pending";
+  }
+}
+
+function renderParamStatus(p) {
+  if (!meta) return;
+  var cur = p.current_sensors||{};
+  var g=0, a=0, r=0, redNames=[];
+  for (var i=0;i<meta.sensors.length;i++) {
+    var s = meta.sensors[i];
+    var val = cur[s], ref = meta.stable_ref[s], std = meta.stable_std[s];
+    if (val==null||!std) continue;
+    var dev = Math.abs((val-ref)/std);
+    if (dev<1) g++; else if (dev<2) a++; else { r++; redNames.push(SHORT[s]||s); }
+  }
+  var tot = g+a+r||1;
+  var pct = function(n){return (n/tot*100)+"%";};
+  document.getElementById("paramStatus").innerHTML = [
+    {lb:"Green",cl:"#16a34a",n:g}, {lb:"Amber",cl:"#d97706",n:a}, {lb:"Red",cl:"#dc2626",n:r}
+  ].map(function(x){
+    return '<div class="ps-row"><span class="ps-label" style="color:'+x.cl+'">'+x.lb+'</span>'+
+      '<div class="ps-bar-wrap"><div class="ps-bar" style="width:'+pct(x.n)+';background:'+x.cl+'"></div></div>'+
+      '<span class="ps-count">'+x.n+'</span></div>';
+  }).join("");
+  var note = document.getElementById("paramNote");
+  if (r>0) { note.textContent="Critical: "+redNames.join(", "); note.style.color="#dc2626"; }
+  else if (a>0) { note.textContent="Within caution limits"; note.style.color="#d97706"; }
+  else { note.textContent="No critical violations \u2713"; note.style.color="#16a34a"; }
+}
+
+/* Shared table renderer — avoids duplicate loop+markup between Current and Forecast tables */
+function renderSensorTable(targetId, headers, getRow) {
+  if (!meta) return;
+  var h = '<table><thead><tr>';
+  for (var hi=0;hi<headers.length;hi++) h += (hi===0 ? '<th>'+headers[hi]+'</th>' : '<th class="num">'+headers[hi]+'</th>');
+  h += '</tr></thead><tbody>';
+  for (var i=0;i<meta.sensors.length;i++) h += getRow(meta.sensors[i]);
+  h += '</tbody></table>';
+  document.getElementById(targetId).innerHTML = h;
+}
+
+function renderCurrentTable(p) {
+  var cur = p.current_sensors||{};
+  renderSensorTable("tableCurrent", ["Sensor","Now","\u03c3 vs ref"], function(s) {
+    var ref=meta.stable_ref[s], std=meta.stable_std[s], val=cur[s];
+    var sig="--";
+    if (val!=null&&std>0) sig=((val-ref)/std).toFixed(2);
+    var cls=Math.abs(parseFloat(sig))>2?"err-high":Math.abs(parseFloat(sig))>1?"err-mid":"err-low";
+    return '<tr><td>'+(SHORT[s]||s)+'</td><td class="num">'+fmt(val,3)+'</td><td class="num '+cls+'">'+sig+'</td></tr>';
+  });
+}
+
+function renderForecastTable(p) {
+  var cur=p.current_sensors||{}, pred=p.predicted_sensors||{};
+  renderSensorTable("tableForecast", ["Sensor","Forecast","\u0394"], function(s) {
+    var v=cur[s], f=pred[s];
+    var d=(f!=null&&v!=null)?(f-v).toFixed(3):"--";
+    return '<tr><td>'+(SHORT[s]||s)+'</td><td class="num">'+fmt(f,3)+'</td><td class="num">'+d+'</td></tr>';
+  });
+}
+
+/* ── Accumulate series ── */
+function pushS(p) {
+  var t = p.elapsed_min;
+  if (t==null||!p.current_sensors) return;
+  S.elapsed.push(t); S.tts.push(p.time_to_stability_min);
+  S.predStable.push(p.predicted_stable_min); S.recEnd.push(p.recommended_end_min);
+  S.conf.push(p.confidence_pct);
+  for (var i=0;i<meta.sensors.length;i++) {
+    var s = meta.sensors[i];
+    if (!S.sensors[s]) S.sensors[s]=[];
+    S.sensors[s].push(p.current_sensors[s]!=null ? p.current_sensors[s] : null);
+    if (!S.predicted[s]) S.predicted[s]=[];
+    S.predicted[s].push(p.predicted_sensors&&p.predicted_sensors[s]!=null ? p.predicted_sensors[s] : null);
+  }
+  var mx = 400;
+  if (S.elapsed.length>mx) {
+    S.elapsed.shift(); S.tts.shift(); S.predStable.shift(); S.recEnd.shift(); S.conf.shift();
+    for (var i=0;i<meta.sensors.length;i++) { var s=meta.sensors[i]; S.sensors[s].shift(); S.predicted[s].shift(); }
+  }
+}
+
+/* ── Redraw ── */
+function redraw() {
+  if (!meta) return;
+  var labels = S.elapsed.map(function(x){return x.toFixed(1);});
+
+  // FAD
+  var fadD  = S.sensors["fad_cfm"]||[];
+  var fadP  = S.predicted["fad_cfm"]||[];
+  var ssRef = meta.stable_ref&&meta.stable_ref.fad_cfm;
+  var specMin = ssRef ? ssRef*0.94 : null;
+  var stT   = meta.stable_onset_min;
+
+  var thinP = fadP.map(function(v,i){ return (i%5===0&&v!=null)?v:null; });
+
+  chFAD.data.labels = labels;
+  chFAD.data.datasets = [
+    {label:"Actual FAD", data:fadD, borderColor:"#2563eb", borderWidth:2, tension:0.3, pointRadius:0, fill:false},
+    {label:"Predicted FAD", data:thinP, borderColor:"transparent", backgroundColor:"#16a34a",
+     pointRadius:6, pointStyle:"rectRot", pointBorderWidth:2, pointBorderColor:"#0d7a30", showLine:false, type:"scatter"}
+  ];
+  var ann = {};
+  if (ssRef) ann.ss = {type:"line",yMin:ssRef,yMax:ssRef,borderColor:"#16a34a",borderWidth:1.5,borderDash:[6,3],
+    label:{display:true,content:"Steady state "+ssRef.toFixed(1)+" CFM",position:"end",font:{size:10},backgroundColor:"rgba(255,255,255,0.85)",color:"#16a34a"}};
+  if (specMin) ann.sm = {type:"line",yMin:specMin,yMax:specMin,borderColor:"#dc2626",borderWidth:1.5,borderDash:[8,4],
+    label:{display:true,content:"Spec min "+specMin.toFixed(0)+" CFM",position:"end",font:{size:10},backgroundColor:"rgba(255,255,255,0.85)",color:"#dc2626"}};
+  if (stT) ann.st = {type:"line",xMin:stT.toFixed(1),xMax:stT.toFixed(1),borderColor:"#d97706",borderWidth:1.5,borderDash:[4,4],
+    label:{display:true,content:"Stable t="+stT.toFixed(0)+"min",position:"start",font:{size:10},backgroundColor:"rgba(255,255,255,0.85)",color:"#d97706"}};
+  chFAD.options.plugins.annotation = {annotations:ann};
+  chFAD.update("none");
+
+  // Sensors
+  chSensors.data.labels = labels;
+  chSensors.data.datasets = meta.sensors.map(function(s,i){
+    return {label:SHORT[s]||s, data:S.sensors[s]||[], borderColor:PAL[i%PAL.length], tension:0.25, pointRadius:0, borderWidth:1.5};
+  });
+  chSensors.update("none");
+
+  // Outlook
+  chOutlook.data.labels = labels;
+  chOutlook.data.datasets = [
+    {label:"Time to stability", data:S.tts, borderColor:"#d97706", tension:0.2, pointRadius:0, borderWidth:1.5},
+    {label:"Pred. stable @",    data:S.predStable, borderColor:"#16a34a", tension:0.2, pointRadius:0, borderWidth:1.5},
+    {label:"Rec. end",          data:S.recEnd, borderColor:"#2563eb", tension:0.2, pointRadius:0, borderWidth:1.5, borderDash:[5,3]},
+  ];
+  chOutlook.update("none");
+}
+
+/* ── Checkpoint accuracy ── */
+function fetchCheckpoints() {
+  fetch("/api/v1/checkpoints").then(function(r){return r.json();}).then(function(j){
+    if (!meta) return;
+    var cps = j.checkpoints||[];
+    if (!cps.length) return;
+    chAcc.data.datasets = meta.sensors.map(function(s,i){
+      return {
+        label: SHORT[s]||s,
+        data: cps.map(function(cp){return cp.available?(cp.error_pct&&cp.error_pct[s]!=null?cp.error_pct[s]:null):null;}),
+        backgroundColor: PAL[i%PAL.length], borderRadius:3
+      };
+    });
+    chAcc.update("none");
+    renderPredTable(cps);
+  }).catch(function(){});
+}
+
+function renderPredTable(cps) {
+  if (!meta) return;
+  var h = '<table><thead><tr><th></th><th>Unit</th>';
+  for (var c=0;c<cps.length;c++) h += '<th class="num">t='+cps[c].checkpoint_min+' min</th>';
+  h += '</tr></thead><tbody>';
+  for (var i=0;i<meta.sensors.length;i++) {
+    var s = meta.sensors[i];
+    h += '<tr><td class="fw500">'+(SHORT[s]||s)+'</td><td class="muted-p">'+(UNITS[s]||"")+'';
+    for (var c=0;c<cps.length;c++) {
+      var cp = cps[c];
+      if (!cp.available) { h += '<td class="num muted-p">--</td>'; continue; }
+      var pv  = cp.predicted_sensors&&cp.predicted_sensors[s];
+      var av  = cp.actual_sensors&&cp.actual_sensors[s];
+      var err = cp.error_pct&&cp.error_pct[s];
+      var isProj = cp.elapsed_min < cp.checkpoint_min-1;
+      var vcls = isProj?"pred-proj":"pred-val";
+      var ecls = err>7?"err-high":err>3?"err-mid":"err-low";
+      h += '<td class="num">';
+      h += '<div class="'+vcls+'">\u25c6 '+fmt(pv,1)+'</div>';
+      if (av!=null) h += '<div class="actual-val">actual: '+fmt(av,1)+'</div>';
+      if (err!=null) h += '<div class="err-val '+ecls+'">\u00b1'+fmt(err,1)+'%</div>';
+      h += '</td>';
+    }
+    h += '</tr>';
+  }
+  h += '</tbody></table>';
+  document.getElementById("predTable").innerHTML = h;
+}
+
+/* ══════════════════════════════════════════════
+   APPLY PAYLOAD
+   ══════════════════════════════════════════════ */
+function applyPayload(p) {
+  if (!p) return;
+  renderAction(p);
+  if (p.elapsed_min!=null) {
+    renderKpis(p);
+    renderReadiness(p);
+    renderParamStatus(p);
+    renderCurrentTable(p);
+    renderForecastTable(p);
+    pushS(p);
+    redraw();
+  }
+}
+
+/* ══════════════════════════════════════════════
+   WEBSOCKET
+   ══════════════════════════════════════════════ */
+function connectWs() {
+  var proto = location.protocol==="https:"?"wss:":"ws:";
+  ws = new WebSocket(proto+"//"+location.host+"/ws/live");
+  ws.onopen  = function(){ setWs(true); };
+  ws.onclose = function(){ setWs(false); setTimeout(connectWs, 2000); };
+  ws.onmessage = function(ev) {
+    var msg = JSON.parse(ev.data);
+    if ((msg.type==="prediction"||msg.type==="hello") && msg.payload) applyPayload(msg.payload);
+  };
+}
+
+/* ══════════════════════════════════════════════
+   INIT + BUTTONS
+   ══════════════════════════════════════════════ */
+function updateProgress() {
+  fetch("/api/v1/demo/progress").then(function(r){return r.json();}).then(function(j){
+    if (j.enabled) {
+      document.getElementById("demoProgress").classList.remove("hidden");
+      document.getElementById("demoProgress").textContent = j.index+"/"+j.total;
+    }
+  }).catch(function(){});
+}
+
+document.getElementById("btnReset").onclick = function() {
+  autoRunning = false;
+  fetch("/api/v1/session/reset",{method:"POST"}).then(function(){
+    /* clear series state */
+    S.elapsed=[]; S.tts=[]; S.predStable=[]; S.recEnd=[]; S.conf=[];
+    S.sensors={}; S.predicted={};
+    if (meta) for (var i=0;i<meta.sensors.length;i++){var s=meta.sensors[i]; S.sensors[s]=[]; S.predicted[s]=[];}
+    redraw();
+    chAcc.data.datasets=[]; chAcc.update("none");
+    /* restore WAIT state — reuse renderAction instead of re-hardcoding styles */
+    renderAction({action:"WAIT"});
+    /* clear KPIs */
+    KPI_IDS.forEach(function(id){ document.getElementById(id).textContent="--"; document.getElementById(id).style.color=""; });
+    /* clear tables */
+    document.getElementById("tableCurrent").innerHTML="";
+    document.getElementById("tableForecast").innerHTML="";
+    document.getElementById("predTable").innerHTML='<p class="muted-p">Data appears after checkpoint times are reached\u2026</p>';
+    /* reset verdict badge */
+    var v=document.getElementById("rVerdict"); v.textContent="PENDING"; v.className="verdict-badge verdict-pending";
+    updateProgress();
+  });
+};
+
+document.getElementById("btnTick").onclick = function() {
+  fetch("/api/v1/demo/tick",{method:"POST"}).then(function(){
+    updateProgress(); fetchCheckpoints();
+  });
+};
+
+document.getElementById("btnAutoReplay").onclick = function() {
+  if (autoRunning) return;
+  autoRunning = true;
+  var btn = document.getElementById("btnAutoReplay");
+  btn.textContent = "Running\u2026"; btn.disabled = true;
+  var speed = parseInt(document.getElementById("replaySpeed").value)||500;
+  var tickCount = 0;
+
+  function loop() {
+    if (!autoRunning) { done(); return; }
+    fetch("/api/v1/demo/tick",{method:"POST"}).then(function(r){return r.json();}).then(function(j){
+      updateProgress(); tickCount++;
+      if (tickCount%10===0) fetchCheckpoints();
+      if (j.done) { done(); return; }
+      setTimeout(loop, speed);
+    }).catch(function(){ done(); });
+  }
+  function done() {
+    autoRunning = false; btn.textContent="Auto Replay"; btn.disabled=false;
+    fetchCheckpoints();
+  }
+  loop();
+};
+
+(function init() {
+  buildCharts();
+  fetch("/api/v1/meta").then(function(r){return r.json();}).then(function(m){
+    meta = m;
+    if (meta.demo_loaded) {
+      document.getElementById("btnTick").classList.remove("hidden");
+      document.getElementById("btnAutoReplay").classList.remove("hidden");
+    }
+    for (var i=0;i<meta.sensors.length;i++){var s=meta.sensors[i]; S.sensors[s]=[]; S.predicted[s]=[];}
+
+    return fetch("/api/v1/history?limit=400");
+  }).then(function(r){return r.json();}).then(function(j){
+    var series = j.series||[];
+    for (var i=0;i<series.length;i++) {
+      if (series[i].result) pushS(series[i].result);
+    }
+    redraw();
+    if (series.length) {
+      var last = series[series.length-1].result;
+      applyPayload(last);
+    }
+    connectWs();
+    updateProgress();
+    fetchCheckpoints();
+  });
+})();
+</script>
+</body>
+</html>
