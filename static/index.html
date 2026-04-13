@@ -316,16 +316,18 @@
 /* Sensor short labels & units */
 const SHORT = {
   airend_discharge_temp_c:   "Disc Temp",
-  delivery_pressure_kg_cm2g: "Del. Press.",
   fad_cfm:                   "FAD",
+  motor_output_power_kw:     "Motor Power",
+  delivery_pressure_kg_cm2g: "Del. Press.",
   package_input_power_kw:    "Pkg Power",
   spc_kw_per_m3_min:         "SPC",
   power_factor:              "PF",
 };
 const UNITS = {
   airend_discharge_temp_c:   "°C",
-  delivery_pressure_kg_cm2g: "kg/cm²g",
   fad_cfm:                   "CFM",
+  motor_output_power_kw:     "kW",
+  delivery_pressure_kg_cm2g: "kg/cm²g",
   package_input_power_kw:    "kW",
   spc_kw_per_m3_min:         "kW/m³/min",
   power_factor:              "",
@@ -358,7 +360,7 @@ const CTICK = { font:{size:10}, color:"#6b7280" };
 const CGRID = { color:"#f0f0f0" };
 const CLEG  = { labels:{ font:{size:11, family:"Inter"}, usePointStyle:true, padding:12 } };
 
-let meta = null, ws = null, autoRunning = false;
+let meta = null, ws = null, autoRunning = false, lastReadiness = null;
 
 const S = {
   elapsed:[], tts:[], predStable:[], recEnd:[], conf:[],
@@ -484,17 +486,17 @@ function renderKpis(p) {
 }
 
 function renderReadiness(p) {
-  if (!meta) return;
-  var fadNow = p.current_sensors&&p.current_sensors.fad_cfm;
-  var ssRef  = meta.stable_ref&&meta.stable_ref.fad_cfm;
-  var specMin = ssRef ? (ssRef*0.94).toFixed(1) : "--";
-  var margin  = (fadNow&&ssRef) ? ((fadNow-ssRef*0.94)/(ssRef*0.94)*100).toFixed(1)+"%" : "--";
+  var rd = p.readiness || {};
+  var specMin = rd.spec_min ? rd.spec_min.toFixed(1) : "--";
+  var margin  = rd.margin_pct != null ? rd.margin_pct.toFixed(1) + "%" : "--";
+  var ssRef   = rd.ss_ref ? rd.ss_ref.toFixed(1) + " CFM" : "--";
+  
   document.getElementById("rStability").textContent = isStable(p.action) ? "Yes" : "No";
-  document.getElementById("rSSFad").textContent     = ssRef ? ssRef.toFixed(1)+" CFM" : "--";
-  document.getElementById("rSpecMin").textContent   = specMin!=="--" ? specMin+" CFM" : "--";
+  document.getElementById("rSSFad").textContent     = ssRef;
+  document.getElementById("rSpecMin").textContent   = specMin !== "--" ? specMin + " CFM" : "--";
   document.getElementById("rFadMargin").textContent = margin;
-  document.getElementById("rTimeSaved").textContent = fmt(p.time_saved_min,0)+" min";
-  document.getElementById("rConf").textContent      = fmt(p.confidence_pct,1)+"%";
+  document.getElementById("rTimeSaved").textContent = fmt(p.time_saved_min, 0) + " min";
+  document.getElementById("rConf").textContent      = fmt(p.confidence_pct, 1) + "%";
   document.getElementById("rMAE").textContent       = p.model_mae_min ? fmt(p.model_mae_min,2)+" min" : "--";
   var v = document.getElementById("rVerdict");
   if (isStable(p.action)) {
@@ -508,15 +510,9 @@ function renderReadiness(p) {
 
 function renderParamStatus(p) {
   if (!meta) return;
-  var cur = p.current_sensors||{};
-  var g=0, a=0, r=0, redNames=[];
-  for (var i=0;i<meta.sensors.length;i++) {
-    var s = meta.sensors[i];
-    var val = cur[s], ref = meta.stable_ref[s], std = meta.stable_std[s];
-    if (val==null||!std) continue;
-    var dev = Math.abs((val-ref)/std);
-    if (dev<1) g++; else if (dev<2) a++; else { r++; redNames.push(SHORT[s]||s); }
-  }
+  var ps = p.param_status || {};
+  var g = ps.green||0, a = ps.amber||0, r = ps.red||0;
+  var redNames = (ps.red_names||[]).map(function(s){return SHORT[s]||s;});
   var tot = g+a+r||1;
   var pct = function(n){return (n/tot*100)+"%";};
   document.getElementById("paramStatus").innerHTML = [
@@ -593,7 +589,7 @@ function redraw() {
   var fadD  = S.sensors["fad_cfm"]||[];
   var fadP  = S.predicted["fad_cfm"]||[];
   var ssRef = meta.stable_ref&&meta.stable_ref.fad_cfm;
-  var specMin = ssRef ? ssRef*0.94 : null;
+  var specMin = (lastReadiness && lastReadiness.spec_min) ? lastReadiness.spec_min : (ssRef ? ssRef*0.94 : null);
   var stT   = meta.stable_onset_min;
 
   var thinP = fadP.map(function(v,i){ return (i%5===0&&v!=null)?v:null; });
@@ -608,7 +604,7 @@ function redraw() {
   if (ssRef) ann.ss = {type:"line",yMin:ssRef,yMax:ssRef,borderColor:"#16a34a",borderWidth:1.5,borderDash:[6,3],
     label:{display:true,content:"Steady state "+ssRef.toFixed(1)+" CFM",position:"end",font:{size:10},backgroundColor:"rgba(255,255,255,0.85)",color:"#16a34a"}};
   if (specMin) ann.sm = {type:"line",yMin:specMin,yMax:specMin,borderColor:"#dc2626",borderWidth:1.5,borderDash:[8,4],
-    label:{display:true,content:"Spec min "+specMin.toFixed(0)+" CFM",position:"end",font:{size:10},backgroundColor:"rgba(255,255,255,0.85)",color:"#dc2626"}};
+    label:{display:true,content:"Spec min "+specMin.toFixed(1)+" CFM",position:"end",font:{size:10},backgroundColor:"rgba(255,255,255,0.85)",color:"#dc2626"}};
   if (stT) ann.st = {type:"line",xMin:stT.toFixed(1),xMax:stT.toFixed(1),borderColor:"#d97706",borderWidth:1.5,borderDash:[4,4],
     label:{display:true,content:"Stable t="+stT.toFixed(0)+"min",position:"start",font:{size:10},backgroundColor:"rgba(255,255,255,0.85)",color:"#d97706"}};
   chFAD.options.plugins.annotation = {annotations:ann};
@@ -683,6 +679,7 @@ function renderPredTable(cps) {
    ══════════════════════════════════════════════ */
 function applyPayload(p) {
   if (!p) return;
+  lastReadiness = p.readiness;
   renderAction(p);
   if (p.elapsed_min!=null) {
     renderKpis(p);

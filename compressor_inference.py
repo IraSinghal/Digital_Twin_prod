@@ -62,9 +62,10 @@ def log(msg):
 def _engineer_features(window_df: pd.DataFrame,
                         stable_ref: pd.Series,
                         stable_std: pd.Series,
-                        sensors: list) -> dict:
+                        sensors: list,
+                        spec_columns: list = []) -> dict:
     """
-    Compute the same 28-feature snapshot used during training.
+    Compute the same feature snapshot used during training.
     window_df must contain 'elapsed_time_min' + all sensor columns.
     """
     feats       = {}
@@ -73,7 +74,7 @@ def _engineer_features(window_df: pd.DataFrame,
     roll10_std  = w.rolling(10, min_periods=1).std()
     roll20_mean = w.rolling(20, min_periods=1).mean()
 
-    i = len(w) - 1  # last row index
+    i = len(window_df) - 1  # last row index
 
     for s in sensors:
         cur = w[s].iloc[-1]
@@ -100,6 +101,35 @@ def _engineer_features(window_df: pd.DataFrame,
     feats["total_dev_roll20"] = float(np.abs(devs_cur).mean())
     feats["total_dev_roll10"] = float(np.abs(devs_roll).mean())
     feats["obs_time_min"]     = float(window_df["elapsed_time_min"].iloc[-1])
+
+    # Spec columns
+    for col in spec_columns:
+        if col in window_df.columns:
+            feats[col] = window_df[col].iloc[-1]
+        else:
+            feats[col] = 0.0
+
+    # Relative features (matching compressor_train.py)
+    # Note: These names are hardcoded in training script's engineer_features_batch
+    if "rated_fad_cfm" in window_df.columns and window_df["rated_fad_cfm"].iloc[-1] != 0:
+        feats["fad_ratio"] = float(w["fad_cfm"].iloc[-1] / window_df["rated_fad_cfm"].iloc[-1])
+        feats["fad_deviation_pct"] = float(
+            ((w["fad_cfm"].iloc[-1] - window_df["rated_fad_cfm"].iloc[-1]) /
+             window_df["rated_fad_cfm"].iloc[-1]) * 100
+        )
+    else:
+        feats["fad_ratio"] = 0.0
+        feats["fad_deviation_pct"] = 0.0
+
+    if "rated_motor_output_kw" in window_df.columns and window_df["rated_motor_output_kw"].iloc[-1] != 0:
+        feats["motor_power_ratio"] = float(w["motor_output_power_kw"].iloc[-1] / window_df["rated_motor_output_kw"].iloc[-1])
+        feats["motor_power_deviation_pct"] = float(
+            ((w["motor_output_power_kw"].iloc[-1] - window_df["rated_motor_output_kw"].iloc[-1]) /
+             window_df["rated_motor_output_kw"].iloc[-1]) * 100
+        )
+    else:
+        feats["motor_power_ratio"] = 0.0
+        feats["motor_power_deviation_pct"] = 0.0
 
     return feats
 
@@ -225,6 +255,7 @@ class CompressorInference:
         self.scaler         = bundle["scaler"]
         self.features       = bundle["features"]
         self.sensors        = bundle["sensors"]
+        self.spec_columns   = bundle.get("spec_columns", [])
         self.stable_ref     = bundle["stable_ref"]
         self.stable_std     = bundle["stable_std"]
         self.stable_time    = bundle["stable_time"]
@@ -276,7 +307,13 @@ class CompressorInference:
             }
 
         # Feature engineering
-        feats      = _engineer_features(window_df, self.stable_ref, self.stable_std, self.sensors)
+        feats      = _engineer_features(
+            window_df,
+            self.stable_ref,
+            self.stable_std,
+            self.sensors,
+            self.spec_columns
+        )
         feat_vec   = np.array([[feats.get(f, 0.0) for f in self.features]])
         feat_scaled = self.scaler.transform(feat_vec)
 
