@@ -30,26 +30,54 @@
       --mono: "JetBrains Mono", ui-monospace, monospace;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+    html {
+      font-size: 16px;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      min-height: 100dvh;
+      width: 100%;
+      overflow-x: hidden;
+    }
 
     /* ── TOP BAR ── */
     .top-bar {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
-      padding: 0.7rem 1.5rem;
+      padding: 0.75rem clamp(0.75rem, 2vw, 1.5rem);
       display: flex; align-items: center; justify-content: space-between;
-      flex-wrap: wrap; gap: 0.6rem;
-      position: sticky; top: 0; z-index: 50;
+      flex-wrap: wrap; gap: 0.65rem 1rem;
+      position: sticky; top: 0; z-index: 9999;
       box-shadow: var(--shadow);
+      width: 100%;
     }
-    .top-bar .left { display: flex; align-items: center; gap: 0.75rem; }
-    .top-bar h1 { font-size: 1rem; font-weight: 700; letter-spacing: -0.02em; }
+    .top-bar .left {
+      display: flex; align-items: center; gap: 0.75rem;
+      flex: 0 1 auto;
+      min-width: 0;
+    }
+    .top-bar h1 { font-size: clamp(0.95rem, 1.1vw + 0.85rem, 1.15rem); font-weight: 700; letter-spacing: -0.02em; }
     .model-tag {
       font-size: 0.65rem; font-weight: 600;
       padding: 0.18rem 0.5rem; border-radius: 6px;
       background: #ede9fe; color: #6d28d9;
     }
-    .controls { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+    .controls {
+      display: flex; align-items: center; gap: 0.5rem;
+      flex-wrap: wrap;
+      flex: 1 1 260px;
+      justify-content: flex-end;
+      min-width: 0;
+    }
+    .controls > button,
+    .controls > select {
+      flex-shrink: 0;
+    }
     .ws-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
     .ws-dot.on { background: var(--ok); box-shadow: 0 0 6px rgba(22,163,74,.5); }
     .ws-dot.off { background: #9ca3af; }
@@ -59,26 +87,47 @@
     .hidden { display: none !important; }
 
     button {
-      font-family: var(--font); font-size: 0.75rem; font-weight: 500;
-      padding: 0.38rem 0.8rem; border-radius: 8px;
+      font-family: var(--font); font-size: 0.875rem; font-weight: 500;
+      padding: 0.45rem 0.95rem; border-radius: 8px;
       border: 1px solid var(--border); background: var(--surface);
       color: var(--text); cursor: pointer; transition: all .15s;
+      white-space: nowrap;
     }
     button:hover { border-color: var(--accent); color: var(--accent); }
     button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
     button.primary:hover { background: #1d4ed8; }
     button.danger-btn { border-color: var(--danger); color: var(--danger); }
     button.danger-btn:hover { background: var(--danger-bg); }
-    button:disabled { opacity: .5; cursor: default; }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
     select {
-      font-family: var(--font); font-size: 0.75rem;
-      padding: 0.38rem 0.55rem; border-radius: 8px;
+      font-family: var(--font); font-size: 0.875rem;
+      padding: 0.42rem 0.6rem; border-radius: 8px;
       border: 1px solid var(--border); background: var(--surface);
       color: var(--text); cursor: pointer;
     }
 
+    /* Keep critical controls visible on narrow screens */
+    @media (max-width: 720px) {
+      .top-bar { align-items: flex-start; }
+      .controls {
+        flex: 1 1 100%;
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 0.35rem;
+        scrollbar-width: thin;
+      }
+      .controls > * { flex: 0 0 auto; }
+    }
+
     /* ── WRAP ── */
-    .wrap { max-width: 1440px; margin: 0 auto; padding: 0.9rem 1.25rem 2rem; }
+    .wrap {
+      width: 100%;
+      max-width: min(1600px, 100%);
+      margin: 0 auto;
+      padding: 1rem clamp(0.75rem, 2vw, 1.35rem) 2.25rem;
+    }
 
     /* ── ACTION BANNER ── */
     .action-banner {
@@ -113,8 +162,20 @@
     .kpi .val { font-family: var(--mono); font-size: 1.05rem; font-weight: 600; }
 
     /* ── MAIN GRID ── */
-    .main-grid { display: grid; grid-template-columns: 1fr 320px; gap: 0.9rem; }
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+      gap: 1rem;
+      align-items: start;
+    }
     @media (max-width: 1024px) { .main-grid { grid-template-columns: 1fr; } }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 0.9rem;
+      margin-bottom: 0.9rem;
+    }
 
     /* ── CARD ── */
     .card {
@@ -126,8 +187,18 @@
       font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.07em; color: var(--muted); margin-bottom: 0.65rem;
     }
-    .chart-box { height: 280px; position: relative; }
-    .chart-box-sm { height: 200px; position: relative; }
+    .chart-box {
+      width: 100%;
+      min-height: 260px;
+      height: clamp(260px, 32vh, 380px);
+      position: relative;
+    }
+    .chart-box-sm {
+      width: 100%;
+      min-height: 200px;
+      height: clamp(200px, 24vh, 280px);
+      position: relative;
+    }
 
     /* ── SIDEBAR ── */
     .sidebar { display: flex; flex-direction: column; gap: 0; }
@@ -199,9 +270,11 @@
       <option value="100">Rapid</option>
       <option value="1000">Slow</option>
     </select>
-    <button id="btnTick">Tick</button>
-    <button class="primary" id="btnAutoReplay">Auto Replay</button>
-    <button class="danger-btn" id="btnReset">Reset</button>
+    <button type="button" class="primary" id="btnStart" disabled>Start</button>
+    <button type="button" id="btnTick" disabled>Tick</button>
+    <button class="primary" type="button" id="btnAutoReplay" disabled>Auto Replay</button>
+    <button type="button" class="danger-btn hidden" id="btnStop">Stop</button>
+    <button type="button" class="danger-btn" id="btnReset">Reset</button>
   </div>
 </div>
 
@@ -230,16 +303,24 @@
 
     <!-- LEFT COLUMN -->
     <div>
-      <!-- FAD Trajectory -->
-      <div class="card">
-        <h2>FAD Trajectory + Predicted Values</h2>
-        <div class="chart-box"><canvas id="chartFAD"></canvas></div>
-      </div>
+      <div class="charts-grid">
+        <!-- FAD Trajectory -->
+        <div class="card">
+          <h2>FAD Trajectory + Predicted Values</h2>
+          <div class="chart-box"><canvas id="chartFAD"></canvas></div>
+        </div>
 
-      <!-- All Sensors -->
-      <div class="card">
-        <h2>Sensor Traces (Real-Time)</h2>
-        <div class="chart-box"><canvas id="chartSensors"></canvas></div>
+        <!-- Disc Temp Trajectory -->
+        <div class="card">
+          <h2>Disc Temp Trajectory + Predicted Values</h2>
+          <div class="chart-box"><canvas id="chartDiscTemp"></canvas></div>
+        </div>
+
+        <!-- Motor Power Trajectory -->
+        <div class="card">
+          <h2>Motor Power Trajectory + Predicted Values</h2>
+          <div class="chart-box"><canvas id="chartMotorPower"></canvas></div>
+        </div>
       </div>
 
       <!-- Prediction Accuracy Bar -->
@@ -313,6 +394,20 @@
 /* ══════════════════════════════════════════════
    CONSTANTS
    ══════════════════════════════════════════════ */
+/* Ensure Chart.js annotation plugin is registered once (bad/duplicate register can throw and break the page script). */
+(function () {
+  if (!window.Chart || typeof Chart.register !== "function") return;
+  var p =
+    window["chartjs-plugin-annotation"] ||
+    window.ChartAnnotation ||
+    (window.chartjs && window.chartjs.plugin && window.chartjs.plugin.annotation);
+  if (!p) return;
+  try {
+    Chart.register(p);
+  } catch (e) {
+    console.warn("Chart annotation plugin:", e);
+  }
+})();
 /* Sensor short labels & units */
 const SHORT = {
   airend_discharge_temp_c:   "Disc Temp",
@@ -383,9 +478,9 @@ function setWs(ok) {
 /* ══════════════════════════════════════════════
    BUILD CHARTS
    ══════════════════════════════════════════════ */
-let chFAD, chSensors, chAcc, chOutlook;
+let chFAD, chDiscTemp, chMotorPower, chAcc, chOutlook;
 
-/* Base options builder — used by chSensors directly; others extend manually where needed */
+/* Base options builder — used by chAcc and chOutlook; others extend manually where needed */
 function mkOpts(extra) {
   return {
     responsive:true, maintainAspectRatio:false, animation:{duration:0},
@@ -414,9 +509,34 @@ function buildCharts() {
     }
   });
 
-  /* Sensor Traces — uses mkOpts() directly */
-  chSensors = new Chart(document.getElementById("chartSensors"), {
-    type:"line", data:{labels:[], datasets:[]}, options:mkOpts()
+  /* Disc Temp Trajectory */
+  chDiscTemp = new Chart(document.getElementById("chartDiscTemp"), {
+    type:"line", data:{labels:[], datasets:[]},
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:{duration:0},
+      plugins:{ legend:CLEG, annotation:{annotations:{}} },
+      scales:{
+        x:{ ticks:Object.assign({maxTicksLimit:12}, CTICK), grid:CGRID,
+            title:{display:true, text:"Time (min)", font:{size:11}, color:"#6b7280"} },
+        y:{ ticks:CTICK, grid:CGRID,
+            title:{display:true, text:"Disc Temp (°C)", font:{size:11}, color:"#6b7280"} }
+      }
+    }
+  });
+
+  /* Motor Power Trajectory */
+  chMotorPower = new Chart(document.getElementById("chartMotorPower"), {
+    type:"line", data:{labels:[], datasets:[]},
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:{duration:0},
+      plugins:{ legend:CLEG, annotation:{annotations:{}} },
+      scales:{
+        x:{ ticks:Object.assign({maxTicksLimit:12}, CTICK), grid:CGRID,
+            title:{display:true, text:"Time (min)", font:{size:11}, color:"#6b7280"} },
+        y:{ ticks:CTICK, grid:CGRID,
+            title:{display:true, text:"Motor Power (kW)", font:{size:11}, color:"#6b7280"} }
+      }
+    }
   });
 
   /* Accuracy Bar — bar chart, no x-title, y bounded 0-10, threshold annotations */
@@ -582,7 +702,7 @@ function pushS(p) {
 
 /* ── Redraw ── */
 function redraw() {
-  if (!meta) return;
+  if (!meta || !chFAD) return;
   var labels = S.elapsed.map(function(x){return x.toFixed(1);});
 
   // FAD
@@ -592,30 +712,68 @@ function redraw() {
   var specMin = (lastReadiness && lastReadiness.spec_min) ? lastReadiness.spec_min : (ssRef ? ssRef*0.94 : null);
   var stT   = meta.stable_onset_min;
 
-  var thinP = fadP.map(function(v,i){ return (i%5===0&&v!=null)?v:null; });
-
   chFAD.data.labels = labels;
   chFAD.data.datasets = [
     {label:"Actual FAD", data:fadD, borderColor:"#2563eb", borderWidth:2, tension:0.3, pointRadius:0, fill:false},
-    {label:"Predicted FAD", data:thinP, borderColor:"transparent", backgroundColor:"#16a34a",
-     pointRadius:6, pointStyle:"rectRot", pointBorderWidth:2, pointBorderColor:"#0d7a30", showLine:false, type:"scatter"}
+    {label:"Predicted FAD", data:fadP, borderColor:"#8b5cf6", borderWidth:2, tension:0.3, pointRadius:0, borderDash:[8,4], fill:false},
   ];
   var ann = {};
+  if (ssRef != null && meta.stable_std && meta.stable_std.fad_cfm != null) {
+    var band = meta.stable_std.fad_cfm * 2;
+    ann.band = {type:"box", yMin:ssRef - band, yMax:ssRef + band, backgroundColor:"rgba(16,185,129,0.08)", borderWidth:0};
+  }
   if (ssRef) ann.ss = {type:"line",yMin:ssRef,yMax:ssRef,borderColor:"#16a34a",borderWidth:1.5,borderDash:[6,3],
     label:{display:true,content:"Steady state "+ssRef.toFixed(1)+" CFM",position:"end",font:{size:10},backgroundColor:"rgba(255,255,255,0.85)",color:"#16a34a"}};
   if (specMin) ann.sm = {type:"line",yMin:specMin,yMax:specMin,borderColor:"#dc2626",borderWidth:1.5,borderDash:[8,4],
     label:{display:true,content:"Spec min "+specMin.toFixed(1)+" CFM",position:"end",font:{size:10},backgroundColor:"rgba(255,255,255,0.85)",color:"#dc2626"}};
   if (stT) ann.st = {type:"line",xMin:stT.toFixed(1),xMax:stT.toFixed(1),borderColor:"#d97706",borderWidth:1.5,borderDash:[4,4],
-    label:{display:true,content:"Stable t="+stT.toFixed(0)+"min",position:"start",font:{size:10},backgroundColor:"rgba(255,255,255,0.85)",color:"#d97706"}};
+    label:{display:true,content:"Stable t="+stT.toFixed(0)+" min",position:"start",font:{size:10},backgroundColor:"rgba(255,255,255,0.85)",color:"#d97706"}};
   chFAD.options.plugins.annotation = {annotations:ann};
   chFAD.update("none");
 
-  // Sensors
-  chSensors.data.labels = labels;
-  chSensors.data.datasets = meta.sensors.map(function(s,i){
-    return {label:SHORT[s]||s, data:S.sensors[s]||[], borderColor:PAL[i%PAL.length], tension:0.25, pointRadius:0, borderWidth:1.5};
-  });
-  chSensors.update("none");
+  // Disc Temp
+  var dtD = S.sensors["airend_discharge_temp_c"]||[];
+  var dtP = S.predicted["airend_discharge_temp_c"]||[];
+  var ssRefDt = meta.stable_ref&&meta.stable_ref.airend_discharge_temp_c;
+
+  chDiscTemp.data.labels = labels;
+  chDiscTemp.data.datasets = [
+    {label:"Actual Disc Temp", data:dtD, borderColor:"#f59e0b", borderWidth:2, tension:0.3, pointRadius:0, fill:false},
+    {label:"Predicted Disc Temp", data:dtP, borderColor:"#8b5cf6", borderWidth:2, tension:0.3, pointRadius:0, borderDash:[8,4], fill:false},
+  ];
+  var annDt = {};
+  if (ssRefDt != null && meta.stable_std && meta.stable_std.airend_discharge_temp_c != null) {
+    var bandDt = meta.stable_std.airend_discharge_temp_c * 2;
+    annDt.band = {type:"box", yMin:ssRefDt - bandDt, yMax:ssRefDt + bandDt, backgroundColor:"rgba(16,185,129,0.08)", borderWidth:0};
+  }
+  if (ssRefDt) annDt.ss = {type:"line",yMin:ssRefDt,yMax:ssRefDt,borderColor:"#16a34a",borderWidth:1.5,borderDash:[6,3],
+    label:{display:true,content:"Steady state "+ssRefDt.toFixed(1)+" °C",position:"end",font:{size:10},backgroundColor:"rgba(255,255,255,0.85)",color:"#16a34a"}};
+  if (stT) annDt.st = {type:"line",xMin:stT.toFixed(1),xMax:stT.toFixed(1),borderColor:"#d97706",borderWidth:1.5,borderDash:[4,4],
+    label:{display:true,content:"Stable t="+stT.toFixed(0)+" min",position:"start",font:{size:10},backgroundColor:"rgba(255,255,255,0.85)",color:"#d97706"}};
+  chDiscTemp.options.plugins.annotation = {annotations:annDt};
+  chDiscTemp.update("none");
+
+  // Motor Power
+  var mpD = S.sensors["motor_output_power_kw"]||[];
+  var mpP = S.predicted["motor_output_power_kw"]||[];
+  var ssRefMp = meta.stable_ref&&meta.stable_ref.motor_output_power_kw;
+
+  chMotorPower.data.labels = labels;
+  chMotorPower.data.datasets = [
+    {label:"Actual Motor Power", data:mpD, borderColor:"#10b981", borderWidth:2, tension:0.3, pointRadius:0, fill:false},
+    {label:"Predicted Motor Power", data:mpP, borderColor:"#8b5cf6", borderWidth:2, tension:0.3, pointRadius:0, borderDash:[8,4], fill:false},
+  ];
+  var annMp = {};
+  if (ssRefMp != null && meta.stable_std && meta.stable_std.motor_output_power_kw != null) {
+    var bandMp = meta.stable_std.motor_output_power_kw * 2;
+    annMp.band = {type:"box", yMin:ssRefMp - bandMp, yMax:ssRefMp + bandMp, backgroundColor:"rgba(16,185,129,0.08)", borderWidth:0};
+  }
+  if (ssRefMp) annMp.ss = {type:"line",yMin:ssRefMp,yMax:ssRefMp,borderColor:"#16a34a",borderWidth:1.5,borderDash:[6,3],
+    label:{display:true,content:"Steady state "+ssRefMp.toFixed(1)+" kW",position:"end",font:{size:10},backgroundColor:"rgba(255,255,255,0.85)",color:"#16a34a"}};
+  if (stT) annMp.st = {type:"line",xMin:stT.toFixed(1),xMax:stT.toFixed(1),borderColor:"#d97706",borderWidth:1.5,borderDash:[4,4],
+    label:{display:true,content:"Stable t="+stT.toFixed(0)+" min",position:"start",font:{size:10},backgroundColor:"rgba(255,255,255,0.85)",color:"#d97706"}};
+  chMotorPower.options.plugins.annotation = {annotations:annMp};
+  chMotorPower.update("none");
 
   // Outlook
   chOutlook.data.labels = labels;
@@ -630,7 +788,7 @@ function redraw() {
 /* ── Checkpoint accuracy ── */
 function fetchCheckpoints() {
   fetch("/api/v1/checkpoints").then(function(r){return r.json();}).then(function(j){
-    if (!meta) return;
+    if (!meta || !chAcc) return;
     var cps = j.checkpoints||[];
     if (!cps.length) return;
     chAcc.data.datasets = meta.sensors.map(function(s,i){
@@ -652,7 +810,7 @@ function renderPredTable(cps) {
   h += '</tr></thead><tbody>';
   for (var i=0;i<meta.sensors.length;i++) {
     var s = meta.sensors[i];
-    h += '<tr><td class="fw500">'+(SHORT[s]||s)+'</td><td class="muted-p">'+(UNITS[s]||"")+'';
+    h += '<tr><td class="fw500">'+(SHORT[s]||s)+'</td><td class="muted-p">'+(UNITS[s]||"")+'</td>';
     for (var c=0;c<cps.length;c++) {
       var cp = cps[c];
       if (!cp.available) { h += '<td class="num muted-p">--</td>'; continue; }
@@ -718,9 +876,18 @@ function updateProgress() {
   }).catch(function(){});
 }
 
-document.getElementById("btnReset").onclick = function() {
+function stopAutoReplay() {
   autoRunning = false;
+  var btn = document.getElementById("btnAutoReplay");
+  btn.textContent = "Auto Replay";
+  btn.disabled = false;
+  document.getElementById("btnStop").classList.add("hidden");
+}
+
+document.getElementById("btnReset").onclick = function() {
+  stopAutoReplay();
   fetch("/api/v1/session/reset",{method:"POST"}).then(function(){
+
     /* clear series state */
     S.elapsed=[]; S.tts=[]; S.predStable=[]; S.recEnd=[]; S.conf=[];
     S.sensors={}; S.predicted={};
@@ -747,8 +914,23 @@ document.getElementById("btnTick").onclick = function() {
   });
 };
 
+document.getElementById("btnStart").onclick = function() {
+  if (autoRunning) return;
+  document.getElementById("btnStop").classList.remove("hidden");
+  startAutoReplay();
+};
+
+document.getElementById("btnStop").onclick = function() {
+  stopAutoReplay();
+};
+
 document.getElementById("btnAutoReplay").onclick = function() {
   if (autoRunning) return;
+  document.getElementById("btnStop").classList.remove("hidden");
+  startAutoReplay();
+};
+
+function startAutoReplay() {
   autoRunning = true;
   var btn = document.getElementById("btnAutoReplay");
   btn.textContent = "Running\u2026"; btn.disabled = true;
@@ -766,23 +948,34 @@ document.getElementById("btnAutoReplay").onclick = function() {
   }
   function done() {
     autoRunning = false; btn.textContent="Auto Replay"; btn.disabled=false;
+    document.getElementById("btnStop").classList.add("hidden");
     fetchCheckpoints();
   }
   loop();
 };
 
 (function init() {
-  buildCharts();
-  fetch("/api/v1/meta").then(function(r){return r.json();}).then(function(m){
+  try {
+    buildCharts();
+  } catch (e) {
+    console.error("buildCharts:", e);
+  }
+  fetch("/api/v1/meta").then(function(r){
+    if (!r.ok) throw new Error("meta HTTP " + r.status);
+    return r.json();
+  }).then(function(m){
     meta = m;
-    if (meta.demo_loaded) {
-      document.getElementById("btnTick").classList.remove("hidden");
-      document.getElementById("btnAutoReplay").classList.remove("hidden");
-    }
+    var hasDemo = !!meta.demo_loaded;
+    document.getElementById("btnTick").disabled = !hasDemo;
+    document.getElementById("btnAutoReplay").disabled = !hasDemo;
+    document.getElementById("btnStart").disabled = !hasDemo;
     for (var i=0;i<meta.sensors.length;i++){var s=meta.sensors[i]; S.sensors[s]=[]; S.predicted[s]=[];}
 
     return fetch("/api/v1/history?limit=400");
-  }).then(function(r){return r.json();}).then(function(j){
+  }).then(function(r){
+    if (!r.ok) throw new Error("history HTTP " + r.status);
+    return r.json();
+  }).then(function(j){
     var series = j.series||[];
     for (var i=0;i<series.length;i++) {
       if (series[i].result) pushS(series[i].result);
@@ -795,6 +988,12 @@ document.getElementById("btnAutoReplay").onclick = function() {
     connectWs();
     updateProgress();
     fetchCheckpoints();
+  }).catch(function (e) {
+    console.error(e);
+    var msg = document.getElementById("actionMsg");
+    if (msg) {
+      msg.textContent = "Could not load the API — use the app URL from the server (e.g. http://127.0.0.1:8000/), not a saved copy of this file.";
+    }
   });
 })();
 </script>

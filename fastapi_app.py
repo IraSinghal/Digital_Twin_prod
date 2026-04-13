@@ -538,6 +538,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import subprocess
 import webbrowser
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -736,11 +737,39 @@ async def lifespan(app: FastAPI):
 
     # ── auto-launch dashboard in browser ──
     _port = int(os.environ.get("PORT", 8000))
-    _url = f"http://localhost:{_port}/"
+    # Prefer 127.0.0.1 over localhost to avoid edge DNS/proxy issues on Windows.
+    _url = f"http://127.0.0.1:{_port}/"
+
+    def _try_open_url(url: str) -> None:
+        """
+        Best-effort open of the dashboard URL.
+        On Windows, `start` is typically more reliable than `webbrowser.open()`.
+        """
+        try:
+            if os.name == "nt":
+                # Use cmd's start to open default browser; empty title prevents URL-as-title bug.
+                subprocess.Popen(
+                    ["cmd", "/c", "start", "", url],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    shell=False,
+                )
+                return
+        except Exception:
+            pass
+        try:
+            webbrowser.open_new_tab(url)
+        except Exception:
+            pass
 
     async def _open_browser():
-        await asyncio.sleep(1.5)   # give uvicorn time to finish binding
-        webbrowser.open(_url)
+        # When running with `uvicorn --reload`, lifespan may execute multiple times.
+        # Use a simple env guard so we only try once per terminal session.
+        if os.environ.get("COMPRESSOR_BROWSER_OPENED") == "1":
+            return
+        os.environ["COMPRESSOR_BROWSER_OPENED"] = "1"
+        await asyncio.sleep(1.2)   # give uvicorn time to finish binding
+        _try_open_url(_url)
 
     asyncio.ensure_future(_open_browser())
 
