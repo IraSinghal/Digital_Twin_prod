@@ -610,11 +610,29 @@ def _augment_result(result: dict, engine: CompressorInference) -> dict:
     if spec_min and fad_now is not None and spec_min > 0:
         margin_pct = round(((fad_now - spec_min) / spec_min) * 100, 2)
 
+    motor_now = cur.get("motor_output_power_kw")
+    rated_motor = extras.get("rated_motor_output_kw") or engine.stable_ref.get(
+        "motor_output_power_kw", 0.0
+    )
+    motor_tolerance_pct = (
+        extras.get("(motor_power_tolerance_pct(%))")
+        or extras.get("motor_power_tolerance_pct")
+        or extras.get("motor_power_tolerance_pct(%)")
+        or 6.0
+    )
+    motor_tol_factor = (100.0 - float(motor_tolerance_pct)) / 100.0
+    motor_spec_min = rated_motor * motor_tol_factor if rated_motor else None
+    motor_margin_pct = None
+    if motor_spec_min and motor_now is not None and motor_spec_min > 0:
+        motor_margin_pct = round(((motor_now - motor_spec_min) / motor_spec_min) * 100, 2)
+
     result["readiness"] = {
         "spec_min": round(spec_min, 2) if spec_min else None,
         "margin_pct": margin_pct,
         "ss_ref": round(rated_fad, 2) if rated_fad else None,
         "tolerance_pct": tolerance_pct,
+        "motor_spec_min": round(motor_spec_min, 2) if motor_spec_min else None,
+        "motor_margin_pct": motor_margin_pct,
     }
 
     g, a, r = 0, 0, 0

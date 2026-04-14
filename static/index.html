@@ -623,7 +623,6 @@
         <option value="1000">Slow</option>
       </select>
       <button type="button" class="primary" id="btnStart" disabled>Start</button>
-      <button class="primary" type="button" id="btnAutoReplay" disabled>Auto Replay</button>
       <button type="button" class="danger-btn hidden" id="btnStop">Stop</button>
       <button type="button" class="danger-btn" id="btnReset">Reset</button>
     </div>
@@ -783,6 +782,7 @@
     };
     /* Trajectory colors: align with :root --accent, --warn, --info, --ok, --danger, --chart-* */
     const CHART_PREDICTED = "#6d28d9";
+    const CHART_ACTUAL_TRAJ = "#d97706";
     const CHART_ANN = {
       ssLine: "#16a34a",
       specLine: "#dc2626",
@@ -1013,7 +1013,7 @@
 
       chFAD.data.labels = labels;
       chFAD.data.datasets = [
-        Object.assign({ label: "Actual FAD", data: fadD, borderColor: colorForSensor("fad_cfm") }, TRAJ_LINE_ACTUAL),
+        Object.assign({ label: "Actual FAD", data: fadD, borderColor: CHART_ACTUAL_TRAJ }, TRAJ_LINE_ACTUAL),
         Object.assign({ label: "Predicted FAD", data: fadP, borderColor: CHART_PREDICTED }, TRAJ_LINE_PRED),
       ];
       var ann = {};
@@ -1039,7 +1039,7 @@
 
       chDiscTemp.data.labels = labels;
       chDiscTemp.data.datasets = [
-        Object.assign({ label: "Actual Disc Temp", data: dtD, borderColor: colorForSensor("airend_discharge_temp_c") }, TRAJ_LINE_ACTUAL),
+        Object.assign({ label: "Actual Disc Temp", data: dtD, borderColor: CHART_ACTUAL_TRAJ }, TRAJ_LINE_ACTUAL),
         Object.assign({ label: "Predicted Disc Temp", data: dtP, borderColor: CHART_PREDICTED }, TRAJ_LINE_PRED),
       ];
       var annDt = {};
@@ -1061,7 +1061,7 @@
 
       chMotorPower.data.labels = labels;
       chMotorPower.data.datasets = [
-        Object.assign({ label: "Actual Motor Power", data: mpD, borderColor: colorForSensor("motor_output_power_kw") }, TRAJ_LINE_ACTUAL),
+        Object.assign({ label: "Actual Motor Power", data: mpD, borderColor: CHART_ACTUAL_TRAJ }, TRAJ_LINE_ACTUAL),
         Object.assign({ label: "Predicted Motor Power", data: mpP, borderColor: CHART_PREDICTED }, TRAJ_LINE_PRED),
       ];
 
@@ -1074,8 +1074,15 @@
         type: "line", yMin: ssRefMp, yMax: ssRefMp, borderColor: CHART_ANN.ssLine, borderWidth: 1.5, borderDash: [6, 3],
         label: { display: true, content: "Steady state " + ssRefMp.toFixed(1) + " kW", position: "end", font: { size: 10 }, backgroundColor: "rgba(255,255,255,0.85)", color: CHART_ANN.ssLine }
       };
-      /* Same reference layers as Disc Temp (band + steady-state only). Rated/spec lines sit far from
- operating kW and stretched the y-axis so the trajectory looked unlike the other charts. */
+      /* Spec min: same pattern as FAD — server readiness each tick, else steady-ref × 0.94 until extras arrive */
+      var specMinMp = (lastReadiness && lastReadiness.motor_spec_min != null) ? lastReadiness.motor_spec_min : (ssRefMp ? ssRefMp * 0.94 : null);
+      if (specMinMp != null && !Number.isNaN(Number(specMinMp))) {
+        var smk = Number(specMinMp);
+        annMp.sm = {
+          type: "line", yMin: smk, yMax: smk, borderColor: CHART_ANN.specLine, borderWidth: 1.5, borderDash: [8, 4],
+          label: { display: true, content: "Spec min " + smk.toFixed(1) + " kW", position: "end", font: { size: 10 }, backgroundColor: "rgba(255,255,255,0.85)", color: CHART_ANN.specLine }
+        };
+      }
       chMotorPower.options.plugins.annotation = { annotations: annMp };
       chMotorPower.update("none");
 
@@ -1164,16 +1171,16 @@
       }).catch(function () { });
     }
 
-    function stopAutoReplay() {
+    function stopDemoReplay() {
       autoRunning = false;
-      var btn = document.getElementById("btnAutoReplay");
-      btn.textContent = "Auto Replay";
-      btn.disabled = false;
+      var btn = document.getElementById("btnStart");
+      btn.textContent = "Start";
+      btn.disabled = !meta || !meta.demo_loaded;
       document.getElementById("btnStop").classList.add("hidden");
     }
 
     document.getElementById("btnReset").onclick = function () {
-      stopAutoReplay();
+      stopDemoReplay();
       fetch("/api/v1/session/reset", { method: "POST" }).then(function () {
 
         /* clear series state */
@@ -1199,22 +1206,16 @@
     document.getElementById("btnStart").onclick = function () {
       if (autoRunning) return;
       document.getElementById("btnStop").classList.remove("hidden");
-      startAutoReplay();
+      startDemoReplay();
     };
 
     document.getElementById("btnStop").onclick = function () {
-      stopAutoReplay();
+      stopDemoReplay();
     };
 
-    document.getElementById("btnAutoReplay").onclick = function () {
-      if (autoRunning) return;
-      document.getElementById("btnStop").classList.remove("hidden");
-      startAutoReplay();
-    };
-
-    function startAutoReplay() {
+    function startDemoReplay() {
       autoRunning = true;
-      var btn = document.getElementById("btnAutoReplay");
+      var btn = document.getElementById("btnStart");
       btn.textContent = "Running\u2026"; btn.disabled = true;
       var speed = parseInt(document.getElementById("replaySpeed").value) || 500;
       var tickCount = 0;
@@ -1229,7 +1230,9 @@
         }).catch(function () { done(); });
       }
       function done() {
-        autoRunning = false; btn.textContent = "Auto Replay"; btn.disabled = false;
+        autoRunning = false;
+        btn.textContent = "Start";
+        btn.disabled = !meta || !meta.demo_loaded;
         document.getElementById("btnStop").classList.add("hidden");
         fetchCheckpoints();
       }
@@ -1248,7 +1251,6 @@
       }).then(function (m) {
         meta = m;
         var hasDemo = !!meta.demo_loaded;
-        document.getElementById("btnAutoReplay").disabled = !hasDemo;
         document.getElementById("btnStart").disabled = !hasDemo;
         for (var i = 0; i < meta.sensors.length; i++) { var s = meta.sensors[i]; S.sensors[s] = []; S.predicted[s] = []; }
 
