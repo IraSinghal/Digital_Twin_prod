@@ -961,7 +961,6 @@ async def checkpoints():
 
         cp_minutes = [30, 60, 90, 120, 150, 180]
         last_result = _history[-1]["result"]
-        actual_sensors = last_result.get("current_sensors", {})
         max_elapsed = last_result.get("elapsed_min", 0)
         result_list = []
 
@@ -984,9 +983,10 @@ async def checkpoints():
                 continue
 
             predicted = best.get("predicted_sensors", {})
+            actual_at_cp = best.get("current_sensors", {})
             errors: dict[str, float | None] = {}
             for s, pv in predicted.items():
-                av = actual_sensors.get(s)
+                av = actual_at_cp.get(s)
                 if av and abs(av) > 1e-9:
                     errors[s] = round(abs(pv - av) / abs(av) * 100, 2)
                 else:
@@ -997,7 +997,7 @@ async def checkpoints():
                 "available": True,
                 "elapsed_min": best.get("elapsed_min"),
                 "predicted_sensors": predicted,
-                "actual_sensors": actual_sensors,
+                "actual_sensors": actual_at_cp,
                 "error_pct": errors,
                 "action": best.get("action"),
                 "confidence_pct": best.get("confidence_pct"),
