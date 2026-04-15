@@ -1,0 +1,13 @@
+c
+
+---
+
+### 8. Visualization (important)
+
+Generate plots:
+
+* Actual vs Predicted (for key signals like FAD, Power)
+* Health score over time
+* Feature contribution breakdown
+
+I have implemented a frontend already and I have a backend logic with sensor values prediction and stuff in place, I also have a frontend, maybe we can just do two different tabs, introduce a new tab for this part on the same webapp

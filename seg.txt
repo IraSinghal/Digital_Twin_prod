@@ -1,1 +1,0 @@
-'Prediction error (%)", font:{size:11}, color:"#6b7280"} }\n      }\n    }\n  });\n}\n\n\n\n/* ══════════════════════════════════════════════\n   RENDER HELPERS\n   ══════════════════════════════════════════════ */\nfunction renderA'

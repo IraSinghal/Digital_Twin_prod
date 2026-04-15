@@ -600,6 +600,139 @@
     .fw500 {
       font-weight: 500;
     }
+
+    /* ── TABS ── */
+    .tabs {
+      display: flex;
+      gap: 0.35rem;
+      margin: 0.35rem 0 0.55rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.25rem;
+      box-shadow: var(--shadow);
+      width: fit-content;
+      max-width: 100%;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      border: 1px solid transparent;
+      background: transparent;
+      padding: 0.4rem 0.8rem;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .tab-btn.active {
+      background: #eff6ff;
+      border-color: #bfdbfe;
+      color: #1d4ed8;
+    }
+    .tab-panel.hidden {
+      display: none !important;
+    }
+
+    /* Health tab layout */
+    .health-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+      gap: 0.45rem;
+      align-items: start;
+    }
+    @media (max-width: 1024px) {
+      .health-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Health explanation banner */
+    .health-explain {
+      border-radius: var(--radius);
+      padding: 0.6rem 0.9rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      margin-bottom: 0.45rem;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+    .health-explain .hex-icon {
+      font-size: 1.1rem;
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+    }
+    .health-explain .hex-text {
+      flex: 1;
+      color: var(--text);
+    }
+    .health-explain .hex-driver {
+      font-weight: 600;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin-top: 0.15rem;
+    }
+
+    /* Interpretations list */
+    .interp-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .interp-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.78rem;
+      line-height: 1.4;
+    }
+    .interp-list li:last-child { border-bottom: none; }
+    .interp-sev {
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+    }
+    .interp-sev--warning { background: var(--warn-bg); color: var(--warn); }
+    .interp-sev--critical { background: var(--danger-bg); color: var(--danger); }
+
+    /* Channel detail table */
+    .ch-detail-table td.issue-tag {
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .issue-normal { color: var(--ok); }
+    .issue-transient { color: var(--warn); }
+    .issue-degradation { color: var(--danger); }
+
+    /* Confidence bar */
+    .conf-bar-wrap {
+      height: 6px;
+      background: #e5e7eb;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 0.2rem;
+    }
+    .conf-bar {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.3s;
+      background: var(--accent);
+    }
+    .conf-bar.low { background: var(--danger); }
   </style>
 </head>
 
@@ -630,99 +763,184 @@
 
   <div class="wrap">
 
-    <!-- ═══ ACTION BANNER ═══ -->
-    <div class="action-banner">
-      <span class="action-pill" id="actionPill"
-        style="background:#f3f4f6;color:#6b7280;border:1.5px solid #d1d5db">WAITING</span>
-      <span class="action-msg" id="actionMsg">Awaiting sensor data&hellip;</span>
+    <!-- ═══ TABS ═══ -->
+    <div class="tabs" role="tablist" aria-label="Dashboard tabs">
+      <button type="button" class="tab-btn active" id="tabBtnStability" role="tab" aria-selected="true">Stability</button>
+      <button type="button" class="tab-btn" id="tabBtnHealth" role="tab" aria-selected="false">Machine Health</button>
     </div>
 
-    <!-- ═══ KPI ROW ═══ -->
-    <div class="kpi-row">
-      <div class="kpi"><label>Elapsed</label>
-        <div class="val" id="kElapsed">--</div>
+    <!-- ═══ TAB: STABILITY ═══ -->
+    <div class="tab-panel" id="tabPanelStability">
+      <!-- ═══ ACTION BANNER ═══ -->
+      <div class="action-banner">
+        <span class="action-pill" id="actionPill"
+          style="background:#f3f4f6;color:#6b7280;border:1.5px solid #d1d5db">WAITING</span>
+        <span class="action-msg" id="actionMsg">Awaiting sensor data&hellip;</span>
       </div>
-      <div class="kpi"><label>Readings</label>
-        <div class="val" id="kReadings">0</div>
+
+      <!-- ═══ KPI ROW ═══ -->
+      <div class="kpi-row">
+        <div class="kpi"><label>Elapsed</label>
+          <div class="val" id="kElapsed">--</div>
+        </div>
+        <div class="kpi"><label>Readings</label>
+          <div class="val" id="kReadings">0</div>
+        </div>
+        <div class="kpi"><label>Predicted Stable @</label>
+          <div class="val" id="kPredStable">--</div>
+        </div>
+        <div class="kpi"><label>Time Saved (vs 3 h)</label>
+          <div class="val" id="kTimeSaved">--</div>
+        </div>
+        <div class="kpi"><label>Confidence</label>
+          <div class="val" id="kConf">--</div>
+        </div>
       </div>
-      <div class="kpi"><label>Predicted Stable @</label>
-        <div class="val" id="kPredStable">--</div>
+
+      <!-- ═══ MAIN GRID ═══ -->
+      <div class="main-grid">
+
+        <!-- LEFT COLUMN -->
+        <div class="main-primary">
+          <div class="charts-grid charts-grid--trajectory">
+            <!-- FAD Trajectory -->
+            <div class="card">
+              <h2>FAD Trajectory + Predicted Values</h2>
+              <div class="chart-box"><canvas id="chartFAD"></canvas></div>
+            </div>
+
+            <!-- Disc Temp Trajectory -->
+            <div class="card">
+              <h2>Disc Temp Trajectory + Predicted Values</h2>
+              <div class="chart-box"><canvas id="chartDiscTemp"></canvas></div>
+            </div>
+
+            <!-- Motor Power Trajectory -->
+            <div class="card">
+              <h2>Motor Power Trajectory + Predicted Values</h2>
+              <div class="chart-box"><canvas id="chartMotorPower"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT SIDEBAR -->
+        <div class="sidebar">
+
+          <!-- Test Readiness -->
+          <div class="card">
+            <h2>Test Readiness Report</h2>
+            <ul class="readiness-list">
+              <li><span class="rl">Stability declared</span><span class="rv" id="rStability">--</span></li>
+              <li><span class="rl">Steady-state FAD</span><span class="rv" id="rSSFad">--</span></li>
+              <li><span class="rl">Spec minimum</span><span class="rv" id="rSpecMin">--</span></li>
+              <li><span class="rl">FAD margin</span><span class="rv" id="rFadMargin">--</span></li>
+              <li><span class="rl">Time saved</span><span class="rv" id="rTimeSaved">--</span></li>
+              <li><span class="rl">Confidence</span><span class="rv" id="rConf">--</span></li>
+              <li><span class="rl">Model MAE</span><span class="rv" id="rMAE">--</span></li>
+              <li>
+                <span class="rl">Overall verdict</span>
+                <span class="verdict-badge verdict-pending" id="rVerdict">PENDING</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Current vs Ref -->
+          <div class="card">
+            <h2>Current vs Stable Reference</h2>
+            <div id="tableCurrent"></div>
+          </div>
+
+          <!-- Forecast -->
+          <div class="card">
+            <h2>Forecast (Next Horizon)</h2>
+            <div id="tableForecast"></div>
+          </div>
+
+        </div>
       </div>
-      <div class="kpi"><label>Time Saved (vs 3 h)</label>
-        <div class="val" id="kTimeSaved">--</div>
-      </div>
-      <div class="kpi"><label>Confidence</label>
-        <div class="val" id="kConf">--</div>
+
+      <div class="card card--pred-table">
+        <h2>Prediction Table &mdash; Predicted vs Actual</h2>
+        <div class="pred-table" id="predTable">
+          <p class="muted-p">Data appears after checkpoint times are reached&hellip;</p>
+        </div>
       </div>
     </div>
 
-    <!-- ═══ MAIN GRID ═══ -->
-    <div class="main-grid">
+    <!-- ═══ TAB: MACHINE HEALTH ═══ -->
+    <div class="tab-panel hidden" id="tabPanelHealth">
 
-      <!-- LEFT COLUMN -->
-      <div class="main-primary">
-        <div class="charts-grid charts-grid--trajectory">
-          <!-- FAD Trajectory -->
+      <!-- KPI row -->
+      <div class="kpi-row">
+        <div class="kpi"><label>Health Score</label>
+          <div class="val" id="kHealth">--</div>
+        </div>
+        <div class="kpi"><label>Band</label>
+          <div class="val" id="kHealthBand">--</div>
+        </div>
+        <div class="kpi"><label>Instant / Drift</label>
+          <div class="val" id="kHealthInstDrift">--</div>
+        </div>
+        <div class="kpi"><label>Confidence</label>
+          <div class="val" id="kHealthConf">--</div>
+          <div class="conf-bar-wrap"><div class="conf-bar" id="kHealthConfBar" style="width:0%"></div></div>
+        </div>
+        <div class="kpi"><label>Score Trend</label>
+          <div class="val" id="kHealthTrend">--</div>
+        </div>
+        <div class="kpi"><label>Top Driver</label>
+          <div class="val" id="kHealthDriver">--</div>
+        </div>
+      </div>
+
+      <!-- Explanation banner -->
+      <div class="health-explain" id="healthExplainBanner">
+        <span class="hex-icon" id="hexIcon">&#9432;</span>
+        <div>
+          <div class="hex-text" id="hexText">Awaiting health data&hellip;</div>
+          <div class="hex-driver" id="hexDriver"></div>
+        </div>
+      </div>
+
+      <!-- Main grid: charts left, detail panels right -->
+      <div class="health-grid">
+        <div>
+          <!-- Health score over time -->
           <div class="card">
-            <h2>FAD Trajectory + Predicted Values</h2>
-            <div class="chart-box"><canvas id="chartFAD"></canvas></div>
+            <h2>Health Score Over Time</h2>
+            <div class="chart-box"><canvas id="chartHealth"></canvas></div>
+          </div>
+          <!-- Risk contribution bar chart -->
+          <div class="card">
+            <h2>Risk Contribution (Points Deducted per Channel)</h2>
+            <div class="chart-box-sm"><canvas id="chartRisk"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Right sidebar -->
+        <div class="sidebar">
+          <!-- Per-channel detail table -->
+          <div class="card">
+            <h2>Channel Detail</h2>
+            <div id="healthChannelTable"><p class="muted-p">Awaiting data&hellip;</p></div>
           </div>
 
-          <!-- Disc Temp Trajectory -->
+          <!-- Derived metrics -->
           <div class="card">
-            <h2>Disc Temp Trajectory + Predicted Values</h2>
-            <div class="chart-box"><canvas id="chartDiscTemp"></canvas></div>
+            <h2>Derived Metrics</h2>
+            <div id="healthDerivedMetrics"><p class="muted-p">Awaiting data&hellip;</p></div>
           </div>
 
-          <!-- Motor Power Trajectory -->
+          <!-- Interpretations -->
           <div class="card">
-            <h2>Motor Power Trajectory + Predicted Values</h2>
-            <div class="chart-box"><canvas id="chartMotorPower"></canvas></div>
+            <h2>Interpretations</h2>
+            <ul class="interp-list" id="healthInterpList">
+              <li><span class="muted-p">No issues detected</span></li>
+            </ul>
           </div>
         </div>
       </div>
 
-      <!-- RIGHT SIDEBAR -->
-      <div class="sidebar">
-
-        <!-- Test Readiness -->
-        <div class="card">
-          <h2>Test Readiness Report</h2>
-          <ul class="readiness-list">
-            <li><span class="rl">Stability declared</span><span class="rv" id="rStability">--</span></li>
-            <li><span class="rl">Steady-state FAD</span><span class="rv" id="rSSFad">--</span></li>
-            <li><span class="rl">Spec minimum</span><span class="rv" id="rSpecMin">--</span></li>
-            <li><span class="rl">FAD margin</span><span class="rv" id="rFadMargin">--</span></li>
-            <li><span class="rl">Time saved</span><span class="rv" id="rTimeSaved">--</span></li>
-            <li><span class="rl">Confidence</span><span class="rv" id="rConf">--</span></li>
-            <li><span class="rl">Model MAE</span><span class="rv" id="rMAE">--</span></li>
-            <li>
-              <span class="rl">Overall verdict</span>
-              <span class="verdict-badge verdict-pending" id="rVerdict">PENDING</span>
-            </li>
-          </ul>
-        </div>
-
-        <!-- Current vs Ref -->
-        <div class="card">
-          <h2>Current vs Stable Reference</h2>
-          <div id="tableCurrent"></div>
-        </div>
-
-        <!-- Forecast -->
-        <div class="card">
-          <h2>Forecast (Next Horizon)</h2>
-          <div id="tableForecast"></div>
-        </div>
-
-      </div>
-    </div>
-
-    <div class="card card--pred-table">
-      <h2>Prediction Table &mdash; Predicted vs Actual</h2>
-      <div class="pred-table" id="predTable">
-        <p class="muted-p">Data appears after checkpoint times are reached&hellip;</p>
-      </div>
     </div>
 
     <p class="foot">Compressor Digital Twin &mdash; Real-time stability monitoring &bull; Multi-output gradient boosting
@@ -819,11 +1037,12 @@
     const TRAJ_LINE_ACTUAL = { borderWidth: 2.5, tension: 0.35, pointRadius: 0, fill: false };
     const TRAJ_LINE_PRED = { borderWidth: 2.5, tension: 0.35, pointRadius: 0, borderDash: [8, 4], fill: false };
 
-    let meta = null, ws = null, autoRunning = false, lastReadiness = null, lastExtras = null;
+    let meta = null, ws = null, autoRunning = false, lastReadiness = null, lastExtras = null, lastHealth = null;
 
     const S = {
       elapsed: [], tts: [], predStable: [], recEnd: [], conf: [],
-      sensors: {}, predicted: {}
+      sensors: {}, predicted: {},
+      health: [], healthSmoothed: []
     };
 
     /* ══════════════════════════════════════════════
@@ -842,7 +1061,7 @@
     /* ══════════════════════════════════════════════
        BUILD CHARTS
        ══════════════════════════════════════════════ */
-    let chFAD, chDiscTemp, chMotorPower;
+    let chFAD, chDiscTemp, chMotorPower, chHealth, chRisk;
 
     function buildCharts() {
       /* FAD Trajectory — same base as mkOpts but adds y-title & annotation plugin */
@@ -902,6 +1121,53 @@
         }
       });
 
+      /* Health Score with band annotations */
+      chHealth = new Chart(document.getElementById("chartHealth"), {
+        type: "line",
+        data: { labels: [], datasets: [] },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: { duration: 0 },
+          plugins: {
+            legend: CLEG,
+            annotation: {
+              annotations: {
+                bandHealthy: { type: "box", yMin: 80, yMax: 100, backgroundColor: "rgba(22,163,74,0.06)", borderWidth: 0 },
+                bandWarning: { type: "box", yMin: 60, yMax: 80, backgroundColor: "rgba(217,119,6,0.06)", borderWidth: 0 },
+                bandCritical: { type: "box", yMin: 0, yMax: 60, backgroundColor: "rgba(220,38,38,0.06)", borderWidth: 0 },
+                lineWarning: { type: "line", yMin: 80, yMax: 80, borderColor: "#d97706", borderWidth: 1, borderDash: [6, 3],
+                  label: { display: true, content: "Warning (80)", position: "end", font: { size: 9 }, backgroundColor: "transparent", color: "#d97706" } },
+                lineCritical: { type: "line", yMin: 60, yMax: 60, borderColor: "#dc2626", borderWidth: 1, borderDash: [6, 3],
+                  label: { display: true, content: "Critical (60)", position: "end", font: { size: 9 }, backgroundColor: "transparent", color: "#dc2626" } },
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: Object.assign({ maxTicksLimit: 12 }, CTICK), grid: CGRID,
+              title: { display: true, text: "Time (min)", font: { size: 11 }, color: "#6b7280" }
+            },
+            y: {
+              ticks: CTICK, grid: CGRID, min: 0, max: 100,
+              title: { display: true, text: "Health (0\u2013100)", font: { size: 11 }, color: "#6b7280" }
+            }
+          }
+        }
+      });
+
+      /* Risk contribution bar — color per bar computed dynamically */
+      chRisk = new Chart(document.getElementById("chartRisk"), {
+        type: "bar",
+        data: { labels: [], datasets: [{ label: "Points deducted", data: [], backgroundColor: [] }] },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: { duration: 0 },
+          indexAxis: "y",
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: CTICK, grid: CGRID, title: { display: true, text: "Points deducted", font: { size: 10 }, color: "#6b7280" } },
+            y: { ticks: CTICK, grid: { display: false } }
+          }
+        }
+      });
     }
 
     /* ══════════════════════════════════════════════
@@ -923,6 +1189,146 @@
       document.getElementById("kTimeSaved").textContent = fmt(p.time_saved_min, 0) + " min";
       document.getElementById("kTimeSaved").style.color = (p.time_saved_min || 0) > 0 ? "#16a34a" : "";
       document.getElementById("kConf").textContent = fmt(p.confidence_pct, 1) + "%";
+    }
+
+    function renderHealthKpis(p) {
+      var hs = p.health_score_smoothed;
+      var band = p.health_band || "--";
+
+      // Score + band
+      document.getElementById("kHealth").textContent = (hs != null ? fmt(hs, 1) : "--");
+      var el = document.getElementById("kHealth");
+      if (band === "Healthy") el.style.color = "#16a34a";
+      else if (band === "Warning") el.style.color = "#d97706";
+      else if (band === "Critical") el.style.color = "#dc2626";
+      else el.style.color = "";
+
+      var bandEl = document.getElementById("kHealthBand");
+      bandEl.textContent = band;
+      bandEl.style.color = el.style.color;
+
+      // Instant / Drift
+      var inst = p.health_score_instant;
+      var drift = p.health_score_drift;
+      document.getElementById("kHealthInstDrift").textContent =
+        (inst != null ? fmt(inst, 0) : "--") + " / " + (drift != null ? fmt(drift, 0) : "--");
+
+      // Confidence
+      var conf = p.health_confidence;
+      var lowConf = p.health_low_confidence;
+      var confPct = conf != null ? (conf * 100) : 0;
+      document.getElementById("kHealthConf").textContent = conf != null ? fmt(confPct, 0) + "%" : "--";
+      var confBar = document.getElementById("kHealthConfBar");
+      confBar.style.width = confPct + "%";
+      confBar.className = "conf-bar" + (lowConf ? " low" : "");
+
+      // Score trend
+      var trend = p.health_score_trend || "--";
+      var trendEl = document.getElementById("kHealthTrend");
+      var trendIcons = { declining: "\u2198 Declining", improving: "\u2197 Improving", stable: "\u2194 Stable" };
+      trendEl.textContent = trendIcons[trend] || trend;
+      if (trend === "declining") trendEl.style.color = "#dc2626";
+      else if (trend === "improving") trendEl.style.color = "#16a34a";
+      else trendEl.style.color = "#6b7280";
+
+      // Top driver
+      var driver = p.health_top_driver;
+      document.getElementById("kHealthDriver").textContent = driver ? (SHORT[driver] || driver) : "--";
+    }
+
+    function renderHealthExplanation(p) {
+      var band = p.health_band || "Healthy";
+      var expl = p.health_explanation || "Awaiting health data\u2026";
+      var driver = p.health_top_driver;
+
+      var icon = document.getElementById("hexIcon");
+      var text = document.getElementById("hexText");
+      var driverEl = document.getElementById("hexDriver");
+      var banner = document.getElementById("healthExplainBanner");
+
+      text.textContent = expl;
+      driverEl.textContent = driver ? "Top driver: " + (SHORT[driver] || driver) : "";
+
+      if (band === "Critical") {
+        icon.textContent = "\u26A0";
+        banner.style.borderColor = "#fca5a5";
+        banner.style.background = "#fef2f2";
+      } else if (band === "Warning") {
+        icon.textContent = "\u26A0";
+        banner.style.borderColor = "#fde68a";
+        banner.style.background = "#fffbeb";
+      } else {
+        icon.textContent = "\u2713";
+        banner.style.borderColor = "#bbf7d0";
+        banner.style.background = "#f0fdf4";
+      }
+    }
+
+    function renderHealthChannelTable(p) {
+      var devs = p.health_deviation || {};
+      var signed = p.health_signed_deviation || {};
+      var contrib = p.health_risk_contrib || {};
+      var issues = p.health_issue_types || {};
+      var slopes = p.health_channel_slopes || {};
+
+      var keys = Object.keys(devs);
+      if (!keys.length) { document.getElementById("healthChannelTable").innerHTML = '<p class="muted-p">No data</p>'; return; }
+
+      var h = '<table><thead><tr><th>Channel</th><th class="num">\u03c3 Dev</th><th class="num">Pts</th><th class="num">Slope</th><th>Status</th></tr></thead><tbody>';
+      for (var i = 0; i < keys.length; i++) {
+        var ch = keys[i];
+        var dev = devs[ch];
+        var sig = signed[ch];
+        var pts = contrib[ch];
+        var issue = issues[ch] || "unknown";
+        var slope = slopes[ch];
+        var issueCls = issue === "normal" ? "issue-normal" : issue === "transient" ? "issue-transient" : issue === "degradation" ? "issue-degradation" : "";
+        var devCls = dev != null && dev > 2 ? "err-high" : dev != null && dev > 1 ? "err-mid" : "err-low";
+
+        h += '<tr>';
+        h += '<td>' + (SHORT[ch] || ch) + '</td>';
+        h += '<td class="num ' + devCls + '">' + (sig != null ? (sig >= 0 ? "+" : "") + sig.toFixed(2) : "--") + '</td>';
+        h += '<td class="num">' + (pts != null ? pts.toFixed(1) : "--") + '</td>';
+        h += '<td class="num">' + (slope != null ? (slope >= 0 ? "+" : "") + slope.toFixed(4) : "--") + '</td>';
+        h += '<td class="issue-tag ' + issueCls + '">' + issue + '</td>';
+        h += '</tr>';
+      }
+      h += '</tbody></table>';
+      document.getElementById("healthChannelTable").innerHTML = h;
+    }
+
+    function renderHealthDerivedMetrics(p) {
+      var dm = p.health_derived_metrics || {};
+      var keys = Object.keys(dm);
+      if (!keys.length) { document.getElementById("healthDerivedMetrics").innerHTML = '<p class="muted-p">No derived metrics</p>'; return; }
+
+      var LABELS = { efficiency_ratio: "Efficiency (FAD / Power)", thermal_load_ratio: "Thermal Load (Temp / Power)" };
+      var UNITS_DM = { efficiency_ratio: "CFM/kW", thermal_load_ratio: "\u00b0C/kW" };
+
+      var h = '<table><thead><tr><th>Metric</th><th class="num">Value</th><th class="num">Unit</th></tr></thead><tbody>';
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        h += '<tr><td>' + (LABELS[k] || k) + '</td><td class="num">' + (dm[k] != null ? dm[k].toFixed(3) : "--") + '</td><td class="num muted-p">' + (UNITS_DM[k] || "") + '</td></tr>';
+      }
+      h += '</tbody></table>';
+      document.getElementById("healthDerivedMetrics").innerHTML = h;
+    }
+
+    function renderHealthInterpretations(p) {
+      var interps = p.health_interpretations || [];
+      var el = document.getElementById("healthInterpList");
+      if (!interps.length) {
+        el.innerHTML = '<li><span class="muted-p">No issues detected \u2713</span></li>';
+        return;
+      }
+      var h = '';
+      for (var i = 0; i < interps.length; i++) {
+        var ip = interps[i];
+        var sevCls = ip.severity === "critical" ? "interp-sev--critical" : "interp-sev--warning";
+        h += '<li><span class="interp-sev ' + sevCls + '">' + (ip.severity || "info") + '</span>';
+        h += '<span>' + (ip.cause || ip.label || "") + '</span></li>';
+      }
+      el.innerHTML = h;
     }
 
     function renderReadiness(p) {
@@ -986,6 +1392,8 @@
       S.elapsed.push(t);
       S.predStable.push(p.predicted_stable_min);
       S.conf.push(p.confidence_pct);
+      S.health.push(p.health_score != null ? p.health_score : null);
+      S.healthSmoothed.push(p.health_score_smoothed != null ? p.health_score_smoothed : null);
       for (var i = 0; i < meta.sensors.length; i++) {
         var s = meta.sensors[i];
         if (!S.sensors[s]) S.sensors[s] = [];
@@ -995,7 +1403,7 @@
       }
       var mx = 400;
       if (S.elapsed.length > mx) {
-        S.elapsed.shift(); S.predStable.shift(); S.conf.shift();
+        S.elapsed.shift(); S.predStable.shift(); S.conf.shift(); S.health.shift(); S.healthSmoothed.shift();
         for (var i = 0; i < meta.sensors.length; i++) { var s = meta.sensors[i]; S.sensors[s].shift(); S.predicted[s].shift(); }
       }
     }
@@ -1086,6 +1494,27 @@
       chMotorPower.options.plugins.annotation = { annotations: annMp };
       chMotorPower.update("none");
 
+      // Health chart
+      if (chHealth) {
+        chHealth.data.labels = labels;
+        chHealth.data.datasets = [
+          Object.assign({ label: "Instantaneous", data: S.health, borderColor: "#94a3b8" }, TRAJ_LINE_PRED),
+          Object.assign({ label: "Smoothed (EMA)", data: S.healthSmoothed, borderColor: "#16a34a" }, TRAJ_LINE_ACTUAL),
+        ];
+        chHealth.update("none");
+      }
+
+      // Risk contribution chart (horizontal bar, color-coded by severity)
+      if (chRisk && lastHealth && lastHealth.contrib) {
+        var rKeys = Object.keys(lastHealth.contrib);
+        var rLabels = rKeys.map(function(k) { return SHORT[k] || k; });
+        var rVals = rKeys.map(function(k) { return lastHealth.contrib[k] != null ? Number(lastHealth.contrib[k]) : 0; });
+        var rColors = rVals.map(function(v) { return v > 5 ? "#dc2626" : v > 2 ? "#d97706" : "#16a34a"; });
+        chRisk.data.labels = rLabels;
+        chRisk.data.datasets[0].data = rVals;
+        chRisk.data.datasets[0].backgroundColor = rColors;
+        chRisk.update("none");
+      }
     }
 
     /* ── Checkpoint accuracy ── */
@@ -1134,12 +1563,18 @@
       if (!p) return;
       lastReadiness = p.readiness;
       if (p.extra_columns) lastExtras = p.extra_columns;
+      if (p.health_risk_contrib) lastHealth = { contrib: p.health_risk_contrib };
       renderAction(p);
       if (p.elapsed_min != null) {
         renderKpis(p);
         renderReadiness(p);
         renderCurrentTable(p);
         renderForecastTable(p);
+        renderHealthKpis(p);
+        renderHealthExplanation(p);
+        renderHealthChannelTable(p);
+        renderHealthDerivedMetrics(p);
+        renderHealthInterpretations(p);
         pushS(p);
         redraw();
       }
@@ -1185,7 +1620,9 @@
 
         /* clear series state */
         lastExtras = null;
+        lastHealth = null;
         S.elapsed = []; S.predStable = []; S.conf = [];
+        S.health = []; S.healthSmoothed = [];
         S.sensors = {}; S.predicted = {};
         if (meta) for (var i = 0; i < meta.sensors.length; i++) { var s = meta.sensors[i]; S.sensors[s] = []; S.predicted[s] = []; }
         redraw();
@@ -1193,6 +1630,24 @@
         renderAction({ action: "WAIT" });
         /* clear KPIs */
         KPI_IDS.forEach(function (id) { document.getElementById(id).textContent = "--"; document.getElementById(id).style.color = ""; });
+        document.getElementById("kHealth").textContent = "--";
+        document.getElementById("kHealth").style.color = "";
+        document.getElementById("kHealthBand").textContent = "--";
+        document.getElementById("kHealthBand").style.color = "";
+        document.getElementById("kHealthInstDrift").textContent = "--";
+        document.getElementById("kHealthConf").textContent = "--";
+        document.getElementById("kHealthConfBar").style.width = "0%";
+        document.getElementById("kHealthTrend").textContent = "--";
+        document.getElementById("kHealthTrend").style.color = "";
+        document.getElementById("kHealthDriver").textContent = "--";
+        document.getElementById("hexText").textContent = "Awaiting health data\u2026";
+        document.getElementById("hexDriver").textContent = "";
+        document.getElementById("hexIcon").textContent = "\u2139";
+        document.getElementById("healthExplainBanner").style.borderColor = "";
+        document.getElementById("healthExplainBanner").style.background = "";
+        document.getElementById("healthChannelTable").innerHTML = '<p class="muted-p">Awaiting data\u2026</p>';
+        document.getElementById("healthDerivedMetrics").innerHTML = '<p class="muted-p">Awaiting data\u2026</p>';
+        document.getElementById("healthInterpList").innerHTML = '<li><span class="muted-p">No issues detected</span></li>';
         /* clear tables */
         document.getElementById("tableCurrent").innerHTML = "";
         document.getElementById("tableForecast").innerHTML = "";
@@ -1202,6 +1657,27 @@
         updateProgress();
       });
     };
+
+    /* ══════════════════════════════════════════════
+       TABS
+       ══════════════════════════════════════════════ */
+    function setTab(which) {
+      const btnS = document.getElementById("tabBtnStability");
+      const btnH = document.getElementById("tabBtnHealth");
+      const panS = document.getElementById("tabPanelStability");
+      const panH = document.getElementById("tabPanelHealth");
+      const isHealth = which === "health";
+      btnS.classList.toggle("active", !isHealth);
+      btnH.classList.toggle("active", isHealth);
+      btnS.setAttribute("aria-selected", (!isHealth).toString());
+      btnH.setAttribute("aria-selected", (isHealth).toString());
+      panS.classList.toggle("hidden", isHealth);
+      panH.classList.toggle("hidden", !isHealth);
+      // Ensure charts redraw when becoming visible
+      setTimeout(function () { try { redraw(); } catch (e) { } }, 0);
+    }
+    document.getElementById("tabBtnStability").onclick = function () { setTab("stability"); };
+    document.getElementById("tabBtnHealth").onclick = function () { setTab("health"); };
 
     document.getElementById("btnStart").onclick = function () {
       if (autoRunning) return;
